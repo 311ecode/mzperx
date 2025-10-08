@@ -1,0 +1,11 @@
+# Core PDF parsing
+pdfplumber>=0.10.0
+Pillow>=10.0.0
+
+# Dependencies to avoid conflicts
+idna>=2.8
+certifi
+click>=7.0
+itsdangerous>=1.1
+Jinja2>=2.10.3
+PyYAML>=5.3

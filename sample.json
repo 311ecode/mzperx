@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "distribution_date": "2025-10-08",
+    "distribution_date": "2025-10-09",
     "document_type": "Looplijst",
     "element_type": "2",
     "element_number": "10024207",
     "route_code": "2OO2 O46 1OO242O7",
     "area": "HAARLEM NOORD",
-    "generated_on": "2025-10-07 12:17",
+    "generated_on": "2025-10-08 12:17",
     "document_number": "03.02.1"
   },
   "newspaper_summary": [
@@ -121,12 +121,36 @@
   ],
   "complaints": [
     {
+      "type": "NIET KRANT",
+      "date": "2025-10-08",
+      "product": "TEL",
+      "subscription_type": "MA-ZA",
+      "address": "Vinkenstraat 55, HAARLEM",
+      "name": "Cummins"
+    },
+    {
+      "type": "NIET KRANT",
+      "date": "2025-10-04",
+      "product": "TEL",
+      "subscription_type": "MA-ZA",
+      "address": "Vinkenstraat 55, HAARLEM",
+      "name": "Cummins"
+    },
+    {
       "type": "VERKEERD",
-      "date": "2025-10-07",
+      "date": "2025-10-08",
       "product": "VK",
       "subscription_type": "MA-ZA",
       "address": "Reigerstraat 124, HAARLEM",
       "name": "Eerden"
+    },
+    {
+      "type": "VERKEERD",
+      "date": "2025-10-08",
+      "product": "TEL",
+      "subscription_type": "MA-ZA",
+      "address": "Nachtegaalstraat 113, HAARLEM",
+      "name": "Wynja"
     }
   ],
   "delivery_route": [
