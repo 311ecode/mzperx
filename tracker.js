@@ -1,26 +1,169 @@
-// Sample route data with coordinates
-const routeData = {
-    metadata: {
-        distribution_date: "2025-10-08",
-        route_code: "10024207",
-        area: "HAARLEM NOORD"
-    },
-    delivery_route: [
-        { street: "VONDELWEG", city: "HAARLEM", deliveries: [
-            { house_number: "252", newspaper: "HD", name: "ZWAR", lat: 52.3890, lon: 4.6420 },
-            { house_number: "284", newspaper: "VK", name: "RD", lat: 52.3895, lon: 4.6425 }
-        ]},
-        { street: "NACHTEGAALSTRAAT", city: "HAARLEM", deliveries: [
-            { house_number: "73", newspaper: "HD", lat: 52.3870, lon: 4.6450 },
-            { house_number: "95", newspaper: "HD", lat: 52.3875, lon: 4.6455 },
-            { house_number: "113", newspaper: "TEL", lat: 52.3880, lon: 4.6460 }
-        ]}
-    ]
-};
-
+let routeData = null;
 let map;
 let markers = [];
 let completedDeliveries = new Set();
+let geocodeCache = {};
+let isGeocoding = false;
+
+// Load route data from sample.json
+async function loadRouteData() {
+    try {
+        const response = await fetch('sample.json');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        routeData = await response.json();
+        console.log('Route data loaded successfully');
+        
+        // Update header with route info
+        const routeInfo = document.getElementById('routeInfo');
+        if (routeInfo && routeData.metadata) {
+            const date = new Date(routeData.metadata.distribution_date);
+            const dateStr = date.toLocaleDateString('nl-NL', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            routeInfo.textContent = `Route ${routeData.metadata.element_number} • ${dateStr}`;
+        }
+        
+        // Initialize the app after data is loaded
+        initializeApp();
+    } catch (error) {
+        console.error('Failed to load route data:', error);
+        alert('Fout: Kon sample.json niet laden. Zorg ervoor dat het bestand in dezelfde map staat als index.html');
+    }
+}
+
+// Initialize the app after data is loaded
+function initializeApp() {
+    loadGeocodeCache();
+    geocodeAllAddresses().then(() => {
+        generateSidebar();
+        loadProgress();
+        createMarkers();
+    });
+}
+
+// Load geocode cache from localStorage
+function loadGeocodeCache() {
+    const cached = localStorage.getItem('geocodeCache');
+    if (cached) {
+        try {
+            geocodeCache = JSON.parse(cached);
+            console.log('Loaded geocode cache with', Object.keys(geocodeCache).length, 'addresses');
+        } catch (e) {
+            console.error('Failed to load geocode cache:', e);
+            geocodeCache = {};
+        }
+    }
+}
+
+// Save geocode cache to localStorage
+function saveGeocodeCache() {
+    try {
+        localStorage.setItem('geocodeCache', JSON.stringify(geocodeCache));
+    } catch (e) {
+        console.error('Failed to save geocode cache:', e);
+    }
+}
+
+// Generate cache key for an address
+function getCacheKey(street, houseNumber, city) {
+    return `${street}|${houseNumber}|${city}`.toUpperCase();
+}
+
+// Geocode an address using Nominatim (OpenStreetMap)
+async function geocodeAddress(street, houseNumber, city) {
+    const cacheKey = getCacheKey(street, houseNumber, city);
+    
+    // Check cache first
+    if (geocodeCache[cacheKey]) {
+        console.log('Cache hit for:', cacheKey);
+        return geocodeCache[cacheKey];
+    }
+    
+    // Rate limiting: wait between requests
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const query = `${houseNumber} ${street}, ${city}, Netherlands`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+    
+    try {
+        console.log('Geocoding:', query);
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Bezorglijst-Tracker/1.0'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+            const result = {
+                lat: parseFloat(data[0].lat),
+                lon: parseFloat(data[0].lon)
+            };
+            
+            // Cache the result
+            geocodeCache[cacheKey] = result;
+            saveGeocodeCache();
+            
+            return result;
+        } else {
+            console.warn('No results for:', query);
+            return null;
+        }
+    } catch (error) {
+        console.error('Geocoding error for', query, ':', error);
+        return null;
+    }
+}
+
+// Geocode all addresses in the route
+async function geocodeAllAddresses() {
+    if (isGeocoding || !routeData) return;
+    isGeocoding = true;
+    
+    let geocodedCount = 0;
+    let cachedCount = 0;
+    let failedCount = 0;
+    
+    for (const street of routeData.delivery_route) {
+        for (const delivery of street.deliveries) {
+            // Skip if already has coordinates
+            if (delivery.lat && delivery.lon) continue;
+            
+            const cacheKey = getCacheKey(street.street, delivery.house_number, street.city);
+            
+            if (geocodeCache[cacheKey]) {
+                delivery.lat = geocodeCache[cacheKey].lat;
+                delivery.lon = geocodeCache[cacheKey].lon;
+                cachedCount++;
+            } else {
+                const coords = await geocodeAddress(street.street, delivery.house_number, street.city);
+                if (coords) {
+                    delivery.lat = coords.lat;
+                    delivery.lon = coords.lon;
+                    geocodedCount++;
+                } else {
+                    failedCount++;
+                }
+            }
+        }
+    }
+    
+    console.log(`Geocoding complete: ${geocodedCount} new, ${cachedCount} cached, ${failedCount} failed`);
+    isGeocoding = false;
+    
+    // Refresh markers after geocoding
+    createMarkers();
+}
 
 // Initialize map
 function initMap() {
@@ -28,9 +171,6 @@ function initMap() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-    
-    // Create markers for all deliveries
-    createMarkers();
 }
 
 // Create custom icons
@@ -61,9 +201,13 @@ function getMarkerIcon(isCompleted) {
 
 // Create markers for all deliveries
 function createMarkers() {
+    if (!routeData) return;
+    
     // Clear existing markers
     markers.forEach(({ marker }) => map.removeLayer(marker));
     markers = [];
+    
+    let bounds = [];
     
     routeData.delivery_route.forEach((street, streetIndex) => {
         street.deliveries.forEach((delivery, deliveryIndex) => {
@@ -89,9 +233,15 @@ function createMarkers() {
                 });
                 
                 markers.push({ marker, id });
+                bounds.push([delivery.lat, delivery.lon]);
             }
         });
     });
+    
+    // Fit map to show all markers
+    if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+    }
 }
 
 // Update marker colors
@@ -117,6 +267,8 @@ function updateMarkers() {
 
 // Get delivery by ID
 function getDeliveryById(id) {
+    if (!routeData) return null;
+    
     const [streetIndex, deliveryIndex] = id.split('-').map(Number);
     const street = routeData.delivery_route[streetIndex];
     if (!street) return null;
@@ -132,6 +284,8 @@ function getDeliveryById(id) {
 
 // Generate sidebar
 function generateSidebar() {
+    if (!routeData) return;
+    
     const sidebar = document.getElementById('sidebar');
     let html = '';
 
@@ -179,6 +333,8 @@ function toggleDelivery(id) {
 }
 
 function updateStats() {
+    if (!routeData) return;
+    
     const total = routeData.delivery_route.reduce((sum, street) => 
         sum + street.deliveries.length, 0);
     const completed = completedDeliveries.size;
@@ -192,7 +348,12 @@ function updateStats() {
 }
 
 function centerMap() {
-    map.setView([52.3874, 4.6462], 14);
+    if (markers.length > 0) {
+        const bounds = markers.map(({ marker }) => marker.getLatLng());
+        map.fitBounds(bounds, { padding: [50, 50] });
+    } else {
+        map.setView([52.3874, 4.6462], 14);
+    }
 }
 
 function resetProgress() {
@@ -224,7 +385,6 @@ function loadProgress() {
     }
 }
 
-// Initialize
+// Initialize - load route data first, then initialize map
 initMap();
-generateSidebar();
-loadProgress();
+loadRouteData();
