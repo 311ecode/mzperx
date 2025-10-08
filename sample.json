@@ -41,12 +41,40 @@
         {
           "house_number": "252",
           "newspaper": "HD",
-          "name": "ZWAR"
+          "name": "ZWAR",
+          "lat": 52.3890,
+          "lon": 4.6420
         },
         {
           "house_number": "284",
           "newspaper": "VK",
-          "name": "RD"
+          "name": "RD",
+          "lat": 52.3895,
+          "lon": 4.6425
+        }
+      ]
+    },
+    {
+      "street": "NACHTEGAALSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "73",
+          "newspaper": "HD",
+          "lat": 52.3870,
+          "lon": 4.6450
+        },
+        {
+          "house_number": "95",
+          "newspaper": "HD",
+          "lat": 52.3875,
+          "lon": 4.6455
+        },
+        {
+          "house_number": "113",
+          "newspaper": "TEL",
+          "lat": 52.3880,
+          "lon": 4.6460
         }
       ]
     }
