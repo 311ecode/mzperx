@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "distribution_date": "2025-10-08",
+    "document_type": "Looplijst",
+    "element_type": "2",
+    "element_number": "10024207",
+    "route_code": "2OO2 O46 1OO242O7",
+    "area": "HAARLEM NOORD",
+    "generated_on": "2025-10-07 12:17",
+    "document_number": "03.02.1"
+  },
+  "newspaper_summary": [
+    {
+      "code": "HDC",
+      "title": "HD",
+      "name": "Haarlems Dagblad",
+      "edition": "O",
+      "standard_bundles": 26,
+      "loose_copies": 26,
+      "subscriber_count": 0,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 26
+    }
+  ],
+  "complaints": [
+    {
+      "type": "VERKEERD",
+      "date": "2025-10-07",
+      "product": "VK",
+      "subscription_type": "MA-ZA",
+      "address": "Reigerstraat 124, HAARLEM",
+      "name": "Eerden"
+    }
+  ],
+  "delivery_route": [
+    {
+      "street": "VONDELWEG",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "252",
+          "newspaper": "HD",
+          "name": "ZWAR"
+        },
+        {
+          "house_number": "284",
+          "newspaper": "VK",
+          "name": "RD"
+        }
+      ]
+    }
+  ]
+}
