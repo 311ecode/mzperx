@@ -24,6 +24,9 @@ body {
 .header-info {
     font-size: 14px;
     opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .progress-bar {
@@ -43,7 +46,7 @@ body {
 
 .container {
     display: flex;
-    height: calc(100vh - 120px);
+    height: calc(100vh - 180px);
 }
 
 #map {
@@ -180,6 +183,16 @@ body {
     color: white;
 }
 
+.btn-success {
+    background: #27ae60;
+    color: white;
+}
+
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
 .leaflet-popup-content {
     font-size: 13px;
 }
@@ -203,6 +216,60 @@ body {
     gap: 5px;
 }
 
+.offline-indicator {
+    margin-left: 10px;
+    padding: 4px 8px;
+    background: #e74c3c;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.install-prompt {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 2000;
+    max-width: 90%;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+.install-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.install-content p {
+    margin: 0;
+    font-weight: 600;
+    flex: 1;
+    min-width: 200px;
+}
+
 .custom-marker {
     background: transparent;
     border: none;
@@ -218,5 +285,9 @@ body {
     }
     .controls {
         right: 20px;
+    }
+    .install-prompt {
+        bottom: 20px;
+        max-width: calc(100% - 40px);
     }
 }

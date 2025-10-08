@@ -5,65 +5,184 @@ let completedDeliveries = new Set();
 let geocodeCache = {};
 let isGeocoding = false;
 
+// IndexedDB for persistent storage
+const DB_NAME = 'BezorglijstDB';
+const DB_VERSION = 1;
+let db;
+
+// Initialize IndexedDB
+function initDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            db = request.result;
+            resolve(db);
+        };
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            // Store for delivery progress
+            if (!db.objectStoreNames.contains('progress')) {
+                db.createObjectStore('progress', { keyPath: 'id' });
+            }
+            
+            // Store for geocode cache
+            if (!db.objectStoreNames.contains('geocache')) {
+                db.createObjectStore('geocache', { keyPath: 'key' });
+            }
+            
+            // Store for route data
+            if (!db.objectStoreNames.contains('routes')) {
+                db.createObjectStore('routes', { keyPath: 'id' });
+            }
+        };
+    });
+}
+
+// Save to IndexedDB
+function saveToIndexedDB(storeName, data) {
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            reject('Database not initialized');
+            return;
+        }
+        
+        const transaction = db.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.put(data);
+        
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Load from IndexedDB
+function loadFromIndexedDB(storeName, key) {
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            reject('Database not initialized');
+            return;
+        }
+        
+        const transaction = db.transaction([storeName], 'readonly');
+        const store = transaction.objectStore(storeName);
+        const request = store.get(key);
+        
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Get all from IndexedDB store
+function getAllFromIndexedDB(storeName) {
+    return new Promise((resolve, reject) => {
+        if (!db) {
+            reject('Database not initialized');
+            return;
+        }
+        
+        const transaction = db.transaction([storeName], 'readonly');
+        const store = transaction.objectStore(storeName);
+        const request = store.getAll();
+        
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
 // Load route data from sample.json
 async function loadRouteData() {
     try {
+        // Try to load from IndexedDB first (offline support)
+        const cachedRoute = await loadFromIndexedDB('routes', 'current');
+        if (cachedRoute && cachedRoute.data) {
+            routeData = cachedRoute.data;
+            console.log('Route data loaded from IndexedDB (offline mode)');
+            updateHeaderInfo();
+            initializeApp();
+            return;
+        }
+        
+        // If not in cache, fetch from network
         const response = await fetch('sample.json');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         routeData = await response.json();
-        console.log('Route data loaded successfully');
+        console.log('Route data loaded from network');
         
-        // Update header with route info
-        const routeInfo = document.getElementById('routeInfo');
-        if (routeInfo && routeData.metadata) {
-            const date = new Date(routeData.metadata.distribution_date);
-            const dateStr = date.toLocaleDateString('nl-NL', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-            routeInfo.textContent = `Route ${routeData.metadata.element_number} • ${dateStr}`;
-        }
+        // Cache the route data
+        await saveToIndexedDB('routes', { id: 'current', data: routeData });
         
-        // Initialize the app after data is loaded
+        updateHeaderInfo();
         initializeApp();
     } catch (error) {
         console.error('Failed to load route data:', error);
-        alert('Fout: Kon sample.json niet laden. Zorg ervoor dat het bestand in dezelfde map staat als index.html');
+        
+        // Try to load from IndexedDB as fallback
+        try {
+            const cachedRoute = await loadFromIndexedDB('routes', 'current');
+            if (cachedRoute && cachedRoute.data) {
+                routeData = cachedRoute.data;
+                console.log('Route data loaded from IndexedDB (fallback)');
+                updateHeaderInfo();
+                initializeApp();
+                return;
+            }
+        } catch (dbError) {
+            console.error('Failed to load from IndexedDB:', dbError);
+        }
+        
+        alert('Fout: Kon route data niet laden. Zorg ervoor dat sample.json beschikbaar is of dat je eerder online bent geweest.');
+    }
+}
+
+// Update header with route info
+function updateHeaderInfo() {
+    const routeInfo = document.getElementById('routeInfo');
+    if (routeInfo && routeData && routeData.metadata) {
+        const date = new Date(routeData.metadata.distribution_date);
+        const dateStr = date.toLocaleDateString('nl-NL', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+        routeInfo.textContent = `Route ${routeData.metadata.element_number} • ${dateStr}`;
     }
 }
 
 // Initialize the app after data is loaded
-function initializeApp() {
-    loadGeocodeCache();
-    geocodeAllAddresses().then(() => {
-        generateSidebar();
-        loadProgress();
-        createMarkers();
-    });
+async function initializeApp() {
+    await loadGeocodeCache();
+    await loadProgress();
+    await geocodeAllAddresses();
+    generateSidebar();
+    createMarkers();
 }
 
-// Load geocode cache from localStorage
-function loadGeocodeCache() {
-    const cached = localStorage.getItem('geocodeCache');
-    if (cached) {
-        try {
-            geocodeCache = JSON.parse(cached);
-            console.log('Loaded geocode cache with', Object.keys(geocodeCache).length, 'addresses');
-        } catch (e) {
-            console.error('Failed to load geocode cache:', e);
-            geocodeCache = {};
-        }
+// Load geocode cache from IndexedDB
+async function loadGeocodeCache() {
+    try {
+        const allCache = await getAllFromIndexedDB('geocache');
+        geocodeCache = {};
+        allCache.forEach(item => {
+            geocodeCache[item.key] = item.value;
+        });
+        console.log('Loaded geocode cache with', Object.keys(geocodeCache).length, 'addresses');
+    } catch (e) {
+        console.error('Failed to load geocode cache:', e);
+        geocodeCache = {};
     }
 }
 
-// Save geocode cache to localStorage
-function saveGeocodeCache() {
+// Save geocode cache to IndexedDB
+async function saveGeocodeCache(key, value) {
     try {
-        localStorage.setItem('geocodeCache', JSON.stringify(geocodeCache));
+        await saveToIndexedDB('geocache', { key, value });
     } catch (e) {
         console.error('Failed to save geocode cache:', e);
     }
@@ -82,6 +201,12 @@ async function geocodeAddress(street, houseNumber, city) {
     if (geocodeCache[cacheKey]) {
         console.log('Cache hit for:', cacheKey);
         return geocodeCache[cacheKey];
+    }
+    
+    // Check if online
+    if (!navigator.onLine) {
+        console.log('Offline - cannot geocode:', cacheKey);
+        return null;
     }
     
     // Rate limiting: wait between requests
@@ -112,7 +237,7 @@ async function geocodeAddress(street, houseNumber, city) {
             
             // Cache the result
             geocodeCache[cacheKey] = result;
-            saveGeocodeCache();
+            await saveGeocodeCache(cacheKey, result);
             
             return result;
         } else {
@@ -145,7 +270,7 @@ async function geocodeAllAddresses() {
                 delivery.lat = geocodeCache[cacheKey].lat;
                 delivery.lon = geocodeCache[cacheKey].lon;
                 cachedCount++;
-            } else {
+            } else if (navigator.onLine) {
                 const coords = await geocodeAddress(street.street, delivery.house_number, street.city);
                 if (coords) {
                     delivery.lat = coords.lat;
@@ -154,6 +279,8 @@ async function geocodeAllAddresses() {
                 } else {
                     failedCount++;
                 }
+            } else {
+                failedCount++;
             }
         }
     }
@@ -295,8 +422,9 @@ function generateSidebar() {
         
         street.deliveries.forEach((delivery, deliveryIndex) => {
             const id = `${streetIndex}-${deliveryIndex}`;
+            const isCompleted = completedDeliveries.has(id);
             html += `
-                <div class="delivery-item" data-id="${id}" onclick="toggleDelivery('${id}')">
+                <div class="delivery-item ${isCompleted ? 'completed' : ''}" data-id="${id}" onclick="toggleDelivery('${id}')">
                     <div class="checkbox">✓</div>
                     <div class="delivery-info">
                         <div>
@@ -316,7 +444,7 @@ function generateSidebar() {
     updateStats();
 }
 
-function toggleDelivery(id) {
+async function toggleDelivery(id) {
     const element = document.querySelector(`[data-id="${id}"]`);
     
     if (completedDeliveries.has(id)) {
@@ -329,7 +457,7 @@ function toggleDelivery(id) {
     
     updateStats();
     updateMarkers();
-    saveProgress();
+    await saveProgress();
 }
 
 function updateStats() {
@@ -356,7 +484,7 @@ function centerMap() {
     }
 }
 
-function resetProgress() {
+async function resetProgress() {
     if (confirm('Weet je zeker dat je alle voortgang wilt resetten?')) {
         completedDeliveries.clear();
         document.querySelectorAll('.delivery-item').forEach(item => {
@@ -364,27 +492,43 @@ function resetProgress() {
         });
         updateStats();
         updateMarkers();
-        localStorage.removeItem('deliveryProgress');
+        
+        // Clear all progress from IndexedDB
+        if (db) {
+            const transaction = db.transaction(['progress'], 'readwrite');
+            const store = transaction.objectStore('progress');
+            store.clear();
+        }
     }
 }
 
-function saveProgress() {
-    localStorage.setItem('deliveryProgress', JSON.stringify([...completedDeliveries]));
+async function saveProgress() {
+    const progressArray = Array.from(completedDeliveries);
+    for (const id of progressArray) {
+        await saveToIndexedDB('progress', { id, completed: true });
+    }
+    console.log('Progress saved to IndexedDB');
 }
 
-function loadProgress() {
-    const saved = localStorage.getItem('deliveryProgress');
-    if (saved) {
-        completedDeliveries = new Set(JSON.parse(saved));
-        completedDeliveries.forEach(id => {
-            const element = document.querySelector(`[data-id="${id}"]`);
-            if (element) element.classList.add('completed');
-        });
-        updateStats();
-        updateMarkers();
+async function loadProgress() {
+    try {
+        const allProgress = await getAllFromIndexedDB('progress');
+        completedDeliveries = new Set(allProgress.map(item => item.id));
+        console.log('Loaded progress:', completedDeliveries.size, 'completed deliveries');
+    } catch (e) {
+        console.error('Failed to load progress:', e);
+        completedDeliveries = new Set();
     }
 }
 
-// Initialize - load route data first, then initialize map
-initMap();
-loadRouteData();
+// Initialize - Initialize DB first, then load route data, then initialize map
+initDB().then(() => {
+    console.log('IndexedDB initialized');
+    initMap();
+    loadRouteData();
+}).catch(error => {
+    console.error('Failed to initialize IndexedDB:', error);
+    // Fallback to regular initialization
+    initMap();
+    loadRouteData();
+});
