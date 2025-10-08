@@ -54,21 +54,28 @@ self.addEventListener('activate', (event) => {
 
 // Fetch strategy: Cache first, then network
 self.addEventListener('fetch', (event) => {
-    // Skip cross-origin requests
-    if (!event.request.url.startsWith(self.location.origin) && 
-        !event.request.url.startsWith('https://unpkg.com') &&
-        !event.request.url.startsWith('https://nominatim.openstreetmap.org') &&
-        !event.request.url.includes('tile.openstreetmap.org')) {
+    const requestUrl = new URL(event.request.url);
+    
+    // Skip chrome extension requests
+    if (requestUrl.protocol === 'chrome-extension:') {
+        return;
+    }
+    
+    // Skip cross-origin requests that aren't in our whitelist
+    if (requestUrl.origin !== location.origin && 
+        !requestUrl.hostname.includes('unpkg.com') &&
+        !requestUrl.hostname.includes('openstreetmap.org') &&
+        !requestUrl.hostname.includes('nominatim.openstreetmap.org')) {
         return;
     }
 
     event.respondWith(
         caches.match(event.request)
-            .then((response) => {
+            .then((cachedResponse) => {
                 // Cache hit - return the cached response
-                if (response) {
+                if (cachedResponse) {
                     console.log('[ServiceWorker] Found in cache:', event.request.url);
-                    return response;
+                    return cachedResponse;
                 }
 
                 // Not in cache - fetch from network
@@ -84,7 +91,7 @@ self.addEventListener('fetch', (event) => {
                         // - Non-GET requests
                         // - Nominatim geocoding API (dynamic data)
                         if (event.request.method !== 'GET' || 
-                            event.request.url.includes('nominatim.openstreetmap.org')) {
+                            requestUrl.hostname.includes('nominatim.openstreetmap.org')) {
                             return response;
                         }
 
@@ -104,13 +111,23 @@ self.addEventListener('fetch', (event) => {
                     })
                     .catch((error) => {
                         console.error('[ServiceWorker] Fetch failed:', error);
-                        // Could return a custom offline page here
-                        throw error;
+                        
+                        // If fetch fails and we have nothing in cache, return a meaningful error
+                        return new Response('Offline - content not available', {
+                            status: 503,
+                            statusText: 'Service Unavailable',
+                            headers: new Headers({
+                                'Content-Type': 'text/plain'
+                            })
+                        });
                     });
             })
             .catch((error) => {
                 console.error('[ServiceWorker] Cache match failed:', error);
-                throw error;
+                return new Response('Cache error', {
+                    status: 500,
+                    statusText: 'Internal Server Error'
+                });
             })
     );
 });
