@@ -138,46 +138,111 @@ async function loadRouteData() {
     try {
         // Try to load from IndexedDB first (offline support)
         const cachedRoute = await loadFromIndexedDB('routes', 'current');
+        
+        // Always try to fetch fresh data if online
+        if (navigator.onLine) {
+            try {
+                console.log('Checking for route data updates...');
+                const response = await fetch('sample.json', {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                
+                if (response.ok) {
+                    const freshData = await response.json();
+                    const freshDataStr = JSON.stringify(freshData);
+                    const cachedDataStr = cachedRoute ? JSON.stringify(cachedRoute.data) : null;
+                    
+                    // Check if data has changed
+                    if (freshDataStr !== cachedDataStr) {
+                        console.log('🔄 Route data updated! Loading new data...');
+                        routeData = freshData;
+                        
+                        // Cache the new data
+                        await saveToIndexedDB('routes', { 
+                            id: 'current', 
+                            data: routeData,
+                            timestamp: Date.now()
+                        });
+                        
+                        // Show notification to user
+                        showUpdateNotification();
+                    } else {
+                        console.log('✓ Route data is up to date');
+                        routeData = freshData;
+                    }
+                    
+                    updateHeaderInfo();
+                    initializeApp();
+                    return;
+                }
+            } catch (fetchError) {
+                console.warn('Could not fetch fresh data, using cache:', fetchError);
+            }
+        }
+        
+        // Use cached data if available
         if (cachedRoute && cachedRoute.data) {
             routeData = cachedRoute.data;
-            console.log('Route data loaded from IndexedDB (offline mode)');
+            console.log('Route data loaded from IndexedDB (offline/fallback mode)');
             updateHeaderInfo();
             initializeApp();
             return;
         }
         
-        // If not in cache, fetch from network
-        const response = await fetch('sample.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        routeData = await response.json();
-        console.log('Route data loaded from network');
+        // No cache and offline - this is an error
+        throw new Error('No cached data and unable to fetch from network');
         
-        // Cache the route data
-        await saveToIndexedDB('routes', { id: 'current', data: routeData });
-        
-        updateHeaderInfo();
-        initializeApp();
     } catch (error) {
         console.error('Failed to load route data:', error);
-        
-        // Try to load from IndexedDB as fallback
-        try {
-            const cachedRoute = await loadFromIndexedDB('routes', 'current');
-            if (cachedRoute && cachedRoute.data) {
-                routeData = cachedRoute.data;
-                console.log('Route data loaded from IndexedDB (fallback)');
-                updateHeaderInfo();
-                initializeApp();
-                return;
-            }
-        } catch (dbError) {
-            console.error('Failed to load from IndexedDB:', dbError);
-        }
-        
         alert('Fout: Kon route data niet laden. Zorg ervoor dat sample.json beschikbaar is of dat je eerder online bent geweest.');
     }
+}
+
+// Show notification when route data is updated
+function showUpdateNotification() {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #27ae60;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 10000;
+        font-weight: 600;
+        animation: slideDown 0.3s ease;
+    `;
+    notification.innerHTML = '🔄 Nieuwe route data geladen!';
+    document.body.appendChild(notification);
+    
+    // Add animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideDown {
+            from {
+                transform: translateX(-50%) translateY(-100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideDown 0.3s ease reverse';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 // Update header with route info
@@ -663,6 +728,84 @@ async function resetProgress() {
             const store = transaction.objectStore('progress');
             store.clear();
         }
+    }
+}
+
+async function refreshRouteData() {
+    if (!navigator.onLine) {
+        alert('Je bent offline. Kan niet controleren op updates.');
+        return;
+    }
+    
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '🔄 Laden...';
+    btn.disabled = true;
+    
+    try {
+        console.log('Manually checking for route data updates...');
+        const response = await fetch('sample.json', {
+            cache: 'no-cache',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const freshData = await response.json();
+        const currentDataStr = JSON.stringify(routeData);
+        const freshDataStr = JSON.stringify(freshData);
+        
+        if (freshDataStr !== currentDataStr) {
+            // Data has changed
+            routeData = freshData;
+            
+            // Cache the new data
+            await saveToIndexedDB('routes', { 
+                id: 'current', 
+                data: routeData,
+                timestamp: Date.now()
+            });
+            
+            // Reload the app with new data
+            updateHeaderInfo();
+            await loadGeocodeCache();
+            await geocodeAllAddresses();
+            generateSidebar();
+            createMarkers();
+            
+            showUpdateNotification();
+        } else {
+            // No changes
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #3498db;
+                color: white;
+                padding: 15px 25px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-weight: 600;
+            `;
+            notification.textContent = '✓ Route data is al up-to-date';
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.remove(), 2000);
+        }
+    } catch (error) {
+        console.error('Failed to refresh route data:', error);
+        alert('Fout bij het ophalen van nieuwe route data.');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 

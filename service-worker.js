@@ -5,7 +5,6 @@ const urlsToCache = [
     './styles.css',
     './tracker.js',
     './sample.json',
-    './manifest.json',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 ];
@@ -17,7 +16,14 @@ self.addEventListener('install', (event) => {
         caches.open(CACHE_NAME)
             .then((cache) => {
                 console.log('[ServiceWorker] Caching app shell');
-                return cache.addAll(urlsToCache);
+                // Cache files individually to handle failures gracefully
+                return Promise.all(
+                    urlsToCache.map(url => {
+                        return cache.add(url).catch(err => {
+                            console.warn('[ServiceWorker] Failed to cache:', url, err);
+                        });
+                    })
+                );
             })
             .then(() => {
                 console.log('[ServiceWorker] Skip waiting');
@@ -52,7 +58,7 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch strategy: Cache first, then network
+// Fetch strategy: Network first for sample.json, Cache first for everything else
 self.addEventListener('fetch', (event) => {
     const requestUrl = new URL(event.request.url);
     
@@ -69,6 +75,32 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Network-first strategy for sample.json to get latest route data
+    if (requestUrl.pathname.endsWith('sample.json')) {
+        event.respondWith(
+            fetch(event.request, {
+                cache: 'no-cache'
+            })
+                .then((response) => {
+                    // Clone and cache the response
+                    if (response && response.status === 200) {
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME)
+                            .then((cache) => {
+                                cache.put(event.request, responseToCache);
+                            });
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    // Network failed, try cache
+                    return caches.match(event.request);
+                })
+        );
+        return;
+    }
+
+    // Cache-first strategy for everything else
     event.respondWith(
         caches.match(event.request)
             .then((cachedResponse) => {
