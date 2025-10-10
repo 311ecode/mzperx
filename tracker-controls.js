@@ -20,11 +20,15 @@ async function resetProgress() {
         updateStats();
         updateMarkers();
         
-        // Clear all progress from IndexedDB
+        // Clear ONLY progress from IndexedDB
+        // IMPORTANT: We preserve the geocode cache ('geocache' store) because
+        // geocoding is slow and expensive. The address locations never change.
+        // We also preserve route data ('routes' store) for offline access.
         if (db) {
             const transaction = db.transaction(['progress'], 'readwrite');
             const store = transaction.objectStore('progress');
             store.clear();
+            console.log('Progress cleared. Geocode cache and route data preserved.');
         }
     }
 }
@@ -38,6 +42,9 @@ async function refreshRouteData() {
     
     try {
         console.log('Refreshing all app resources (CSS, JS, Service Worker, Route Data)...');
+        
+        // Note: Geocode cache is preserved in IndexedDB during refresh
+        // because address coordinates don't change and geocoding is expensive
         
         // Force reload with cache bypass - this will get fresh versions of everything
         window.location.reload(true);
