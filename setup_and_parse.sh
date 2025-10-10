@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 
 # Configuration
 ZORGDK_CONDA_ENV_NAME="zordejrant"
@@ -21,6 +22,42 @@ zorgdk_print_warn() {
 
 zorgdk_print_error() {
     echo -e "${ZORGDK_RED}[ERROR]${ZORGDK_NC} $1"
+}
+
+# Function to get conda base path
+zorgdk_get_conda_base() {
+    # Try to find conda installation
+    if command -v conda &> /dev/null; then
+        conda info --base 2>/dev/null
+    elif [ -n "$CONDA_EXE" ]; then
+        dirname "$(dirname "$CONDA_EXE")"
+    elif [ -d "$HOME/miniconda3" ]; then
+        echo "$HOME/miniconda3"
+    elif [ -d "$HOME/anaconda3" ]; then
+        echo "$HOME/anaconda3"
+    else
+        echo ""
+    fi
+}
+
+# Function to initialize conda for bash
+zorgdk_init_conda() {
+    local conda_base
+    conda_base=$(zorgdk_get_conda_base)
+    
+    if [ -z "$conda_base" ]; then
+        zorgdk_print_error "Could not find conda installation"
+        return 1
+    fi
+    
+    # Source conda.sh if it exists
+    if [ -f "$conda_base/etc/profile.d/conda.sh" ]; then
+        source "$conda_base/etc/profile.d/conda.sh"
+        return 0
+    else
+        zorgdk_print_error "Could not find conda.sh at $conda_base/etc/profile.d/conda.sh"
+        return 1
+    fi
 }
 
 # Function to check if conda is installed
@@ -58,9 +95,18 @@ zorgdk_create_env() {
 zorgdk_install_dependencies() {
     zorgdk_print_info "Installing Python dependencies..."
     
+    # Make sure conda is initialized
+    if ! zorgdk_init_conda; then
+        return 1
+    fi
+    
     # Activate environment
-    eval "$(conda shell.bash hook)"
     conda activate "$ZORGDK_CONDA_ENV_NAME"
+    
+    if [ $? -ne 0 ]; then
+        zorgdk_print_error "Failed to activate environment"
+        return 1
+    fi
     
     # Install all required dependencies to avoid conflicts
     zorgdk_print_info "Installing base dependencies..."
@@ -88,12 +134,16 @@ zorgdk_setup_environment() {
         return 1
     fi
     
+    # Initialize conda
+    if ! zorgdk_init_conda; then
+        return 1
+    fi
+    
     # Check if environment exists
     if zorgdk_env_exists; then
         zorgdk_print_info "Environment '$ZORGDK_CONDA_ENV_NAME' already exists"
         
         # Check if pdfplumber is installed
-        eval "$(conda shell.bash hook)"
         conda activate "$ZORGDK_CONDA_ENV_NAME"
         
         if ! python -c "import pdfplumber" 2>/dev/null; then
@@ -149,6 +199,11 @@ zorgdk_parse_looplijst() {
         return 1
     fi
     
+    # Initialize conda
+    if ! zorgdk_init_conda; then
+        return 1
+    fi
+    
     if ! zorgdk_env_exists; then
         zorgdk_print_warn "Environment not found, setting up..."
         zorgdk_setup_environment
@@ -158,8 +213,23 @@ zorgdk_parse_looplijst() {
     fi
     
     # Activate environment and run parser
-    eval "$(conda shell.bash hook)"
     conda activate "$ZORGDK_CONDA_ENV_NAME"
+    
+    if [ $? -ne 0 ]; then
+        zorgdk_print_error "Failed to activate conda environment"
+        zorgdk_print_info "Try running: conda activate $ZORGDK_CONDA_ENV_NAME"
+        return 1
+    fi
+    
+    # Verify pdfplumber is available
+    if ! python -c "import pdfplumber" 2>/dev/null; then
+        zorgdk_print_error "pdfplumber not available in environment"
+        zorgdk_print_info "Running setup to install dependencies..."
+        zorgdk_install_dependencies
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
+    fi
     
     # Check if Python script exists
     if [ ! -f "$ZORGDK_PYTHON_SCRIPT" ]; then
