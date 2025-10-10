@@ -15,6 +15,9 @@ async function toggleDelivery(id) {
     updateStats();
     updateMarkers();
     await saveProgress();
+    
+    // Center map on the clicked delivery's marker
+    centerMapOnDelivery(id);
 }
 
 // Save progress to IndexedDB

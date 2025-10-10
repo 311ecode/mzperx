@@ -46,6 +46,38 @@
     border-left-color: #27ae60;
 }
 
+/* Highlight flash animation for map-sidebar sync */
+.delivery-item.highlight-flash {
+    animation: flashHighlight 2s ease-in-out;
+}
+
+@keyframes flashHighlight {
+    0% {
+        background-color: transparent;
+        transform: scale(1);
+    }
+    15% {
+        background-color: #f1c40f;
+        transform: scale(1.02);
+    }
+    30% {
+        background-color: #f39c12;
+        transform: scale(1.02);
+    }
+    50% {
+        background-color: #f1c40f;
+        transform: scale(1.02);
+    }
+    70% {
+        background-color: #f39c12;
+        transform: scale(1.02);
+    }
+    100% {
+        background-color: transparent;
+        transform: scale(1);
+    }
+}
+
 .checkbox {
     width: 22px;
     height: 22px;

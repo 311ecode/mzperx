@@ -45,6 +45,38 @@ function getMarkerIcon(completionStatus) {
     });
 }
 
+// Scroll sidebar item into view and highlight it
+function highlightSidebarItems(deliveryIds) {
+    // Remove any existing highlights first
+    document.querySelectorAll('.delivery-item').forEach(item => {
+        item.classList.remove('highlight-flash');
+    });
+    
+    // Highlight all delivery items for this address
+    deliveryIds.forEach((id, index) => {
+        const element = document.querySelector(`[data-id="${id}"]`);
+        if (element) {
+            // Scroll the first one into view
+            if (index === 0) {
+                element.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }
+            
+            // Add highlight animation to all
+            setTimeout(() => {
+                element.classList.add('highlight-flash');
+                
+                // Remove highlight after animation completes
+                setTimeout(() => {
+                    element.classList.remove('highlight-flash');
+                }, 2000);
+            }, 300); // Small delay for smooth scroll to complete first
+        }
+    });
+}
+
 // Create markers for all deliveries
 function createMarkers() {
     if (!routeData) return;
@@ -121,18 +153,25 @@ function createMarkers() {
         
         marker.bindPopup(popupContent);
         
+        const deliveryIds = deliveries.map(d => d.id);
+        
         // Click behavior
         if (deliveries.length === 1) {
-            // Single delivery: toggle on click
+            // Single delivery: toggle on click and highlight in sidebar
             marker.on('click', () => {
                 toggleDelivery(deliveries[0].id);
+                highlightSidebarItems(deliveryIds);
+            });
+        } else {
+            // Multiple deliveries: show popup and highlight all in sidebar
+            marker.on('click', () => {
+                highlightSidebarItems(deliveryIds);
             });
         }
-        // Multiple deliveries: just show popup (default behavior, no handler needed)
         
         markers.push({ 
             marker, 
-            deliveryIds: deliveries.map(d => d.id),
+            deliveryIds: deliveryIds,
             addressKey: `${street}|${houseNumber}`
         });
         
@@ -214,4 +253,22 @@ function getAddressDataByIds(deliveryIds) {
         houseNumber: firstDelivery.house_number,
         deliveries
     };
+}
+
+// Find marker by delivery ID and center map on it
+function centerMapOnDelivery(deliveryId) {
+    const markerData = markers.find(m => m.deliveryIds.includes(deliveryId));
+    if (markerData) {
+        const markerLatLng = markerData.marker.getLatLng();
+        map.setView(markerLatLng, Math.max(map.getZoom(), 17), {
+            animate: true,
+            duration: 0.5
+        });
+        
+        // Optional: Open popup briefly to show which marker
+        markerData.marker.openPopup();
+        setTimeout(() => {
+            markerData.marker.closePopup();
+        }, 2000);
+    }
 }
