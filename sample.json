@@ -1,158 +1,15 @@
 {
   "metadata": {
-    "distribution_date": "2025-10-09",
+    "distribution_date": "2010-10-2025",
     "document_type": "Looplijst",
     "element_type": "2",
     "element_number": "10024207",
     "route_code": "2OO2 O46 1OO242O7",
-    "area": "HAARLEM NOORD",
-    "generated_on": "2025-10-08 12:17",
-    "document_number": "03.02.1"
+    "area": "HDC HD",
+    "generated_on": "09-10-2025 12:20"
   },
-  "newspaper_summary": [
-    {
-      "code": "HDC",
-      "title": "HD",
-      "name": "Haarlems Dagblad",
-      "edition": "O",
-      "standard_bundles": 26,
-      "loose_copies": 26,
-      "subscriber_count": 0,
-      "lv_count": 0,
-      "leftover_papers": 0,
-      "total_circulation": 26
-    },
-    {
-      "code": "TEL",
-      "title": "LAN",
-      "name": "Telegraaf Landelijk",
-      "edition": "O",
-      "standard_bundles": 8,
-      "loose_copies": 7,
-      "subscriber_count": 0,
-      "lv_count": 1,
-      "leftover_papers": 0,
-      "total_circulation": 8
-    },
-    {
-      "code": "NRC",
-      "title": "NRC",
-      "name": "NRC",
-      "edition": "O",
-      "standard_bundles": 1,
-      "loose_copies": 1,
-      "subscriber_count": 0,
-      "lv_count": 0,
-      "leftover_papers": 0,
-      "total_circulation": 1
-    },
-    {
-      "code": "AD",
-      "title": "AD",
-      "name": "Algemeen Dagblad NLD",
-      "edition": "O",
-      "standard_bundles": 1,
-      "loose_copies": 1,
-      "subscriber_count": 0,
-      "lv_count": 0,
-      "leftover_papers": 0,
-      "total_circulation": 1
-    },
-    {
-      "code": "ND",
-      "title": "ND",
-      "name": "Nederlands Dagblad",
-      "edition": "O",
-      "standard_bundles": 2,
-      "loose_copies": 2,
-      "subscriber_count": 0,
-      "lv_count": 0,
-      "leftover_papers": 0,
-      "total_circulation": 2
-    },
-    {
-      "code": "HFD",
-      "title": "HFD",
-      "name": "Het Financieele Dagblad",
-      "edition": "O",
-      "standard_bundles": 1,
-      "loose_copies": 1,
-      "subscriber_count": 0,
-      "lv_count": 0,
-      "leftover_papers": 0,
-      "total_circulation": 1
-    },
-    {
-      "code": "TR",
-      "title": "TR",
-      "name": "Trouw",
-      "edition": "O",
-      "standard_bundles": 2,
-      "loose_copies": 2,
-      "subscriber_count": 0,
-      "lv_count": 0,
-      "leftover_papers": 0,
-      "total_circulation": 2
-    },
-    {
-      "code": "VK",
-      "title": "VK",
-      "name": "Volkskrant",
-      "edition": "O",
-      "standard_bundles": 8,
-      "loose_copies": 8,
-      "subscriber_count": 0,
-      "lv_count": 0,
-      "leftover_papers": 0,
-      "total_circulation": 8
-    },
-    {
-      "code": "HP",
-      "title": "HP",
-      "name": "Het Parool",
-      "edition": "O",
-      "standard_bundles": 2,
-      "loose_copies": 2,
-      "subscriber_count": 0,
-      "lv_count": 0,
-      "leftover_papers": 0,
-      "total_circulation": 2
-    }
-  ],
-  "complaints": [
-    {
-      "type": "NIET KRANT",
-      "date": "2025-10-08",
-      "product": "TEL",
-      "subscription_type": "MA-ZA",
-      "address": "Vinkenstraat 55, HAARLEM",
-      "name": "Cummins"
-    },
-    {
-      "type": "NIET KRANT",
-      "date": "2025-10-04",
-      "product": "TEL",
-      "subscription_type": "MA-ZA",
-      "address": "Vinkenstraat 55, HAARLEM",
-      "name": "Cummins"
-    },
-    {
-      "type": "VERKEERD",
-      "date": "2025-10-08",
-      "product": "VK",
-      "subscription_type": "MA-ZA",
-      "address": "Reigerstraat 124, HAARLEM",
-      "name": "Eerden"
-    },
-    {
-      "type": "VERKEERD",
-      "date": "2025-10-08",
-      "product": "TEL",
-      "subscription_type": "MA-ZA",
-      "address": "Nachtegaalstraat 113, HAARLEM",
-      "name": "Wynja"
-    }
-  ],
+  "newspaper_summary": [],
+  "complaints": [],
   "delivery_route": [
     {
       "street": "VONDELWEG",
@@ -223,6 +80,11 @@
         {
           "house_number": "224",
           "newspaper": "HD"
+        },
+        {
+          "house_number": "264",
+          "newspaper": "TEL",
+          "name": "M---VZ-"
         },
         {
           "house_number": "286",
@@ -347,7 +209,13 @@
         {
           "house_number": "61",
           "newspaper": "HD"
-        },
+        }
+      ]
+    },
+    {
+      "street": "VINKENSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
         {
           "house_number": "64",
           "newspaper": "HD"
@@ -386,7 +254,7 @@
         {
           "house_number": "69",
           "newspaper": "TEL",
-          "name": "Kammeijer"
+          "name": "Kammeijer -"
         },
         {
           "house_number": "70",
