@@ -38,11 +38,44 @@
         <div class="sidebar" id="sidebar"></div>
     </div>
 
-    <div class="controls">
+    <!-- Desktop Controls (hidden on mobile) -->
+    <div class="controls desktop-controls">
         <button class="btn btn-primary" onclick="centerMap()">🎯 Centreer Kaart</button>
         <button class="btn btn-success" onclick="refreshRouteData()">🔄 Ververs Alles</button>
         <button class="btn btn-danger" onclick="resetProgress()">🔄 Reset</button>
     </div>
+
+    <!-- Mobile Hamburger Button -->
+    <button class="hamburger-btn" onclick="toggleMenu()" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Mobile Slide-out Menu -->
+    <div class="mobile-menu" id="controlsMenu">
+        <div class="mobile-menu-header">
+            <h3>Menu</h3>
+            <button class="close-menu-btn" onclick="closeMenu()" aria-label="Sluit menu">×</button>
+        </div>
+        <div class="mobile-menu-content">
+            <button class="menu-item btn-primary" onclick="centerMap(); closeMenu();">
+                <span class="menu-icon">🎯</span>
+                <span class="menu-text">Centreer Kaart</span>
+            </button>
+            <button class="menu-item btn-success" onclick="refreshRouteData(); closeMenu();">
+                <span class="menu-icon">🔄</span>
+                <span class="menu-text">Ververs Alles</span>
+            </button>
+            <button class="menu-item btn-danger" onclick="resetProgress(); closeMenu();">
+                <span class="menu-icon">🔄</span>
+                <span class="menu-text">Reset Voortgang</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="tracker.js"></script>

@@ -14,14 +14,38 @@
         max-width: calc(100% - 40px);
     }
     
-    .controls {
-        flex-wrap: wrap;
-        bottom: 10px;
-        max-width: calc(100% - 40px);
+    /* Hide desktop controls on mobile */
+    .desktop-controls {
+        display: none !important;
     }
     
-    .btn {
-        padding: 10px 16px;
-        font-size: 13px;
+    /* Show hamburger button on mobile */
+    .hamburger-btn {
+        display: flex;
+    }
+    
+    /* Show mobile menu on mobile */
+    .mobile-menu {
+        display: flex;
+    }
+    
+    /* Show overlay when menu is open */
+    .mobile-menu.show ~ .menu-overlay {
+        display: block;
+    }
+}
+
+@media (min-width: 769px) {
+    /* Hide hamburger and mobile menu on desktop */
+    .hamburger-btn {
+        display: none !important;
+    }
+    
+    .mobile-menu {
+        display: none !important;
+    }
+    
+    .menu-overlay {
+        display: none !important;
     }
 }
