@@ -828,6 +828,28 @@ async function loadProgress() {
     }
 }
 
+// Toggle hamburger menu
+function toggleMenu() {
+    const menu = document.getElementById('controlsMenu');
+    menu.classList.toggle('show');
+}
+
+// Close menu
+function closeMenu() {
+    const menu = document.getElementById('controlsMenu');
+    menu.classList.remove('show');
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', (event) => {
+    const menu = document.getElementById('controlsMenu');
+    const hamburger = document.querySelector('.hamburger-btn');
+    
+    if (menu && hamburger && !menu.contains(event.target) && !hamburger.contains(event.target)) {
+        menu.classList.remove('show');
+    }
+});
+
 // Initialize - Initialize DB first, then load route data, then initialize map
 initDB().then(() => {
     console.log('IndexedDB initialized');
