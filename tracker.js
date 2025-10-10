@@ -732,78 +732,20 @@ async function resetProgress() {
 }
 
 async function refreshRouteData() {
-    if (!navigator.onLine) {
-        alert('Je bent offline. Kan niet controleren op updates.');
-        return;
-    }
-    
     const btn = event.target;
     const originalText = btn.innerHTML;
     btn.innerHTML = '🔄 Laden...';
     btn.disabled = true;
     
     try {
-        console.log('Manually checking for route data updates...');
-        const response = await fetch('sample.json', {
-            cache: 'no-cache',
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            }
-        });
+        console.log('Refreshing all app resources (CSS, JS, Service Worker, Route Data)...');
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        // Force reload with cache bypass - this will get fresh versions of everything
+        window.location.reload(true);
         
-        const freshData = await response.json();
-        const currentDataStr = JSON.stringify(routeData);
-        const freshDataStr = JSON.stringify(freshData);
-        
-        if (freshDataStr !== currentDataStr) {
-            // Data has changed
-            routeData = freshData;
-            
-            // Cache the new data
-            await saveToIndexedDB('routes', { 
-                id: 'current', 
-                data: routeData,
-                timestamp: Date.now()
-            });
-            
-            // Reload the app with new data
-            updateHeaderInfo();
-            await loadGeocodeCache();
-            await geocodeAllAddresses();
-            generateSidebar();
-            createMarkers();
-            
-            showUpdateNotification();
-        } else {
-            // No changes
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: #3498db;
-                color: white;
-                padding: 15px 25px;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                z-index: 10000;
-                font-weight: 600;
-            `;
-            notification.textContent = '✓ Route data is al up-to-date';
-            document.body.appendChild(notification);
-            
-            setTimeout(() => notification.remove(), 2000);
-        }
     } catch (error) {
-        console.error('Failed to refresh route data:', error);
-        alert('Fout bij het ophalen van nieuwe route data.');
-    } finally {
+        console.error('Failed to refresh:', error);
+        alert('Fout bij het verversen van de applicatie.');
         btn.innerHTML = originalText;
         btn.disabled = false;
     }

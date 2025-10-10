@@ -1,0 +1,25 @@
+/* Map container, markers, and popups */
+.container {
+    display: flex;
+    height: calc(100vh - 180px);
+}
+
+#map {
+    flex: 1;
+    height: 100%;
+}
+
+.custom-marker {
+    background: transparent;
+    border: none;
+}
+
+.leaflet-popup-content {
+    font-size: 13px;
+}
+
+.popup-house {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 5px;
+}
