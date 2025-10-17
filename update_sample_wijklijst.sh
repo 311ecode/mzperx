@@ -87,9 +87,7 @@ update_sample_wijklijst() {
         zorgdk_print_info "Successfully updated sample: $sample_json"
         echo "$sample_json"
 
-        cd $PRIVATE_DIR/projects/bezorgdk/promzdkr/examples
-
-        gd
+        cd $PRIVATE_DIR
 
         return 0
     else
