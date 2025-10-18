@@ -91,7 +91,7 @@ update_sample_wijklijst() {
 
         ga $sample_dir
 
-        gacomp .
+        gacomp "Updated sample.json from latest Wijklijst PDF at $(date) ."
 
         manage_site_visibility
 
