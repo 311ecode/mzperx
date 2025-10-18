@@ -89,6 +89,12 @@ update_sample_wijklijst() {
 
         cd $PRIVATE_DIR
 
+        ga $sample_dir
+
+        gacomp .
+
+        manage_site_visibility
+
         return 0
     else
         zorgdk_print_error "Failed to copy to sample: $sample_json"
