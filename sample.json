@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "distribution_date": "2020-10-2025",
+    "distribution_date": "2021-10-2025",
     "document_type": "Looplijst",
     "element_type": "2",
     "element_number": "10024207",
     "route_code": "2OO2 O46 1OO242O7",
     "area": "HDC HD",
-    "generated_on": "18-10-2025 12:31"
+    "generated_on": "20-10-2025 12:17"
   },
   "newspaper_summary": [],
   "complaints": [],
@@ -86,11 +86,6 @@
           "newspaper": "HD"
         },
         {
-          "house_number": "264",
-          "newspaper": "TEL",
-          "name": "M---VZ-"
-        },
-        {
           "house_number": "286",
           "newspaper": "HD"
         }
@@ -103,13 +98,7 @@
         {
           "house_number": "8",
           "newspaper": "HD"
-        }
-      ]
-    },
-    {
-      "street": "MEERKOETSTRAAT",
-      "city": "HAARLEM",
-      "deliveries": [
+        },
         {
           "house_number": "10",
           "newspaper": "TEL"
@@ -219,7 +208,13 @@
         {
           "house_number": "61",
           "newspaper": "HD"
-        },
+        }
+      ]
+    },
+    {
+      "street": "VINKENSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
         {
           "house_number": "64",
           "newspaper": "HD"
