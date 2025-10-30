@@ -103,19 +103,19 @@ update_sample_wijklijst() {
     fi
 }
 
-# If script is being sourced, just define the function
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    # Script is being executed directly
-    if [ -n "$1" ]; then
-        update_sample_wijklijst "$1"
-    else
-        echo "Sample Wijklijst Updater"
-        echo ""
-        echo "Usage:"
-        echo " $0 [downloads_dir] # Update sample.json from latest PDF in downloads_dir"
-        echo ""
-        echo "Or source this script and use the function:"
-        echo " source $0"
-        echo " update_sample_wijklijst [downloads_dir]"
-    fi
-fi
+# # If script is being sourced, just define the function
+# if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+#     # Script is being executed directly
+#     if [ -n "$1" ]; then
+#         update_sample_wijklijst "$1"
+#     else
+#         echo "Sample Wijklijst Updater"
+#         echo ""
+#         echo "Usage:"
+#         echo " $0 [downloads_dir] # Update sample.json from latest PDF in downloads_dir"
+#         echo ""
+#         echo "Or source this script and use the function:"
+#         echo " source $0"
+#         echo " update_sample_wijklijst [downloads_dir]"
+#     fi
+# fi
