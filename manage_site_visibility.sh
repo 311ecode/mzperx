@@ -71,27 +71,29 @@ manage_site_visibility() {
         return 1
     fi
 
-    # 2. Modify configuration to be PUBLIC using yq
+    # 2. Modify configuration to be PUBLIC using yq (modern syntax for yq v4+)
     msv_print_info "Applying temporary (public) configuration using yq..."
     msv_print_info "Setting json_output to: $json_output_path"
 
-    # Define the yq commands using single quotes
-    # The $VARNAME syntax is for jq, which will read them
-    # from the --arg flags below.
-    local yq_cmd_project='.projects[] |= (select(.path == $MSV_PROJ_PATH) |= (.private = false | .githubPages = true))'
-    local yq_cmd_json='.json_output = $MSV_JSON_PATH'
-
-    # Run yq to apply both changes
-    # FIX: Pass variables directly to jq using --arg
-    # This avoids environment variable scoping issues.
-    yq -i -y \
-       --arg MSV_PROJ_PATH "$MSV_PROJECT_PATH" \
-       --arg MSV_JSON_PATH "$json_output_path" \
-       "$yq_cmd_project | $yq_cmd_json" \
-       "$MSV_CONFIG_FILE"
+    # Modern yq uses environment variables with env() function
+    # First, set the project to public and enable GitHub Pages
+    MSV_PROJ_PATH="$MSV_PROJECT_PATH" yq eval -i \
+        '(.projects[] | select(.path == env(MSV_PROJ_PATH))) |= (.private = false | .githubPages = true)' \
+        "$MSV_CONFIG_FILE"
 
     if [[ $? -ne 0 ]]; then
-        msv_print_error "yq command failed. Restoring from backup."
+        msv_print_error "yq command failed (project modification). Restoring from backup."
+        cp "$backup_file" "$MSV_CONFIG_FILE"
+        return 1
+    fi
+
+    # Second, set the json_output path
+    MSV_JSON_PATH="$json_output_path" yq eval -i \
+        '.json_output = env(MSV_JSON_PATH)' \
+        "$MSV_CONFIG_FILE"
+
+    if [[ $? -ne 0 ]]; then
+        msv_print_error "yq command failed (json_output modification). Restoring from backup."
         cp "$backup_file" "$MSV_CONFIG_FILE"
         return 1
     fi
