@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "distribution_date": "2003-11-2025",
+    "distribution_date": "2004-11-2025",
     "document_type": "Looplijst",
     "element_type": "2",
     "element_number": "10024207",
     "route_code": "2OO2 O46 1OO242O7",
     "area": "HDC HD",
-    "generated_on": "01-11-2025 12:31"
+    "generated_on": "03-11-2025 12:20"
   },
   "newspaper_summary": [],
   "complaints": [],
@@ -86,11 +86,6 @@
           "newspaper": "HD"
         },
         {
-          "house_number": "264",
-          "newspaper": "TEL",
-          "name": "M---VZ-"
-        },
-        {
           "house_number": "286",
           "newspaper": "HD"
         }
@@ -121,7 +116,13 @@
         {
           "house_number": "15",
           "newspaper": "HD"
-        },
+        }
+      ]
+    },
+    {
+      "street": "REIGERSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
         {
           "house_number": "16",
           "newspaper": "VK"
@@ -213,13 +214,7 @@
         {
           "house_number": "61",
           "newspaper": "HD"
-        }
-      ]
-    },
-    {
-      "street": "VINKENSTRAAT",
-      "city": "HAARLEM",
-      "deliveries": [
+        },
         {
           "house_number": "64",
           "newspaper": "HD"
@@ -237,7 +232,13 @@
         {
           "house_number": "53",
           "newspaper": "TEL"
-        },
+        }
+      ]
+    },
+    {
+      "street": "VERGIERDEWEG",
+      "city": "HAARLEM",
+      "deliveries": [
         {
           "house_number": "59",
           "newspaper": "HD"
