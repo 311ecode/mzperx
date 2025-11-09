@@ -8,32 +8,37 @@ try:
 except ImportError:
     print("Error: pdfplumber not installed. Run the setup script first.", file=sys.stderr)
     sys.exit(1)
+
 def format_date(date_str):
-    """Convert O9-1O-2O25 format to 2025-10-09"""
-    # First replace O with 0
+    """Convert date to YYYY-MM-DD format, handling both DD-MM-YYYY and YYYY-MM-DD inputs"""
+    # Replace O with 0
     cleaned = date_str.replace('O', '0')
-   
+    
     # Split by dash
     parts = cleaned.split('-')
-   
-    if len(parts) == 3:
+    
+    if len(parts) != 3:
+        return cleaned
+    
+    # Detect format by checking which part is likely the year
+    if len(parts[0]) == 4:
+        # Already YYYY-MM-DD format
+        year, month, day = parts[0], parts[1], parts[2]
+    elif len(parts[2]) == 4:
+        # DD-MM-YYYY format
+        day, month, year = parts[0], parts[1], parts[2]
+    else:
+        # Assume DD-MM-YY and convert to 4-digit year
         day = parts[0].zfill(2)
         month = parts[1].zfill(2)
-        year = parts[2]
-       
-        # Handle year - if it's 2 digits, add 20 prefix
-        if len(year) == 2:
-            year = '20' + year
-        elif len(year) == 4:
-            # Already 4 digits
-            pass
-        else:
-            # Might be corrupted like "2025" becoming "202025"
-            year = year[-4:] # Take last 4 digits
-       
-        return f"{year}-{month}-{day}"
-   
-    return cleaned
+        year = '20' + parts[2].zfill(2)
+    
+    # Ensure proper padding
+    day = day.zfill(2)
+    month = month.zfill(2)
+    
+    return f"{year}-{month}-{day}"
+
 def extract_metadata(text):
     """Extract metadata from PDF text"""
     metadata = {}
@@ -57,13 +62,12 @@ def extract_metadata(text):
     if elemno_match:
         metadata['element_number'] = elemno_match.group(1)
    
-    # Route code (looks like "2OO2 O46 1OO242O7")
-    # This appears after </ronde> tag
+    # Route code
     route_match = re.search(r'</ronde>\s*\n\s*([0-9O ]+)', text)
     if route_match:
         metadata['route_code'] = route_match.group(1).strip()
    
-    # Area name (appears before "WIJKLIJST")
+    # Area name
     area_match = re.search(r'\n([A-Z][A-Z ]+[A-Z])\s+WIJKLIJST', text)
     if area_match:
         metadata['area'] = area_match.group(1).strip()
@@ -80,6 +84,7 @@ def extract_metadata(text):
         metadata['document_number'] = doc_match.group(1)
    
     return metadata
+
 def parse_newspaper_summary(text):
     """Parse newspaper summary table"""
     newspapers = []
@@ -92,7 +97,7 @@ def parse_newspaper_summary(text):
         return newspapers
    
     table_section = text[table_start:complaint_start]
-    lines = table_section.split('\n')[1:] # Skip header
+    lines = table_section.split('\n')[1:]
    
     newspaper_codes = ['HDC', 'TEL', 'NRC', 'AD', 'ND', 'HFD', 'TR', 'VK', 'HP']
    
@@ -101,7 +106,6 @@ def parse_newspaper_summary(text):
         if not line or line.startswith('Klacht'):
             continue
        
-        # Parse newspaper line
         for code in newspaper_codes:
             if line.startswith(code):
                 parts = line.split()
@@ -124,11 +128,11 @@ def parse_newspaper_summary(text):
                 break
    
     return newspapers
+
 def parse_complaints(text):
     """Parse complaints section"""
     complaints = []
    
-    # Find complaints section
     complaint_start = text.find('Klacht Datum Product')
     route_start = text.find('VONDELWEG')
    
@@ -140,20 +144,18 @@ def parse_complaints(text):
     else:
         complaint_section = text[complaint_start:]
    
-    lines = complaint_section.split('\n')[1:] # Skip header
+    lines = complaint_section.split('\n')[1:]
    
     for line in lines:
         line = line.strip()
         if not line or 'VONDELWEG' in line:
             break
        
-        # Parse complaint line
         parts = line.split()
         if len(parts) >= 5:
             complaint_type = parts[0]
             if complaint_type in ['NIET', 'VERKEERD']:
                 try:
-                    # Handle "NIET KRANT" or "VERKEERD VERKEERD"
                     if parts[1] in ['KRANT', 'VERKEERD']:
                         full_type = f"{parts[0]} {parts[1]}"
                         date_idx = 2
@@ -165,7 +167,6 @@ def parse_complaints(text):
                     product = parts[date_idx + 1]
                     subscription = parts[date_idx + 2]
                    
-                    # Extract address and name
                     remaining = ' '.join(parts[date_idx + 3:])
                     addr_parts = remaining.split(',')
                     if len(addr_parts) >= 2:
@@ -184,11 +185,11 @@ def parse_complaints(text):
                     continue
    
     return complaints
+
 def parse_delivery_route(text):
     """Parse delivery route with streets and deliveries"""
     delivery_route = []
    
-    # Find route section
     route_start = text.find('VONDELWEG')
     route_end = text.find('EINDE WIJKLIJST')
    
@@ -198,7 +199,6 @@ def parse_delivery_route(text):
     route_section = text[route_start:route_end if route_end != -1 else len(text)]
     lines = route_section.split('\n')
    
-    # Known street suffixes to help identify streets
     street_suffixes = ['STRAAT', 'WEG', 'LAAN', 'PLEIN', 'SINGEL', 'GRACHT', 'KADE', 'DIJK', 'PAD']
     newspaper_codes = ['HD', 'TEL', 'VK', 'NRC', 'AD', 'ND', 'HFD', 'TR', 'HP']
    
@@ -211,34 +211,26 @@ def parse_delivery_route(text):
         if not line:
             continue
        
-        # Check if line starts with a number - it's a delivery line
         if re.match(r'^[0-9O]+[A-Z]?\s+', line):
             parts = line.split()
             if len(parts) >= 2:
                 house_number = parts[0].replace('O', '0')
                
-                # Find newspaper code
                 newspaper = None
                 name = None
                
-                # Newspaper code should be right after house number or after a name
                 for i, part in enumerate(parts[1:], 1):
                     if part in newspaper_codes:
                         newspaper = part
-                        # If there's something before the newspaper code, it's a name
                         if i > 1:
                             name = ' '.join(parts[1:i])
-                        # If there's something after, it might also be part of name
                         if len(parts) > i + 1:
                             extra = ' '.join(parts[i+1:])
                             if extra and extra != '-':
-                                # If we already have a name, this is probably garbage, ignore it
-                                # Otherwise use it as name
                                 if not name:
                                     name = extra
                         break
                
-                # Only add if we have a valid newspaper and street
                 if newspaper and current_street:
                     delivery = {
                         'house_number': house_number,
@@ -248,20 +240,15 @@ def parse_delivery_route(text):
                         delivery['name'] = name
                     deliveries.append(delivery)
        
-        # Check if it's a street name
         elif line.isupper() and not any(char.isdigit() for char in line):
-            # Must end with a known street suffix or be an uppercase word
             is_street = False
            
-            # Check for street suffixes
             for suffix in street_suffixes:
                 if suffix in line:
                     is_street = True
                     break
            
-            # If it looks like a street (all caps, no numbers, no newspaper codes in it)
             if is_street or not any(code in line.split() for code in newspaper_codes):
-                # Save previous street
                 if current_street and deliveries:
                     delivery_route.append({
                         'street': current_street,
@@ -269,7 +256,6 @@ def parse_delivery_route(text):
                         'deliveries': deliveries
                     })
                
-                # Parse new street
                 if ',' in line:
                     parts = line.split(',')
                     current_street = parts[0].strip()
@@ -280,7 +266,6 @@ def parse_delivery_route(text):
                
                 deliveries = []
    
-    # Save last street
     if current_street and deliveries:
         delivery_route.append({
             'street': current_street,
@@ -289,38 +274,32 @@ def parse_delivery_route(text):
         })
    
     return delivery_route
+
 def parse_pdf(pdf_path):
     """Main parsing function"""
     try:
         with pdfplumber.open(pdf_path) as pdf:
-            # Extract text from each page
             text = ''
            
             for page in pdf.pages:
-                # Get page dimensions
                 page_width = page.width
                 page_height = page.height
                
-                # The PDF has 3 columns - split the page into columns
                 col_width = page_width / 3
                
                 columns_text = []
                
-                # Extract each column separately
                 for i in range(3):
                     x0 = i * col_width
                     x1 = (i + 1) * col_width
                    
-                    # Crop to column
                     column = page.crop((x0, 0, x1, page_height))
                     col_text = column.extract_text()
                     if col_text:
                         columns_text.append(col_text)
                
-                # Combine columns in order (left to right, top to bottom)
                 text += '\n'.join(columns_text) + '\n'
            
-            # Parse all sections
             result = {
                 'metadata': extract_metadata(text),
                 'newspaper_summary': parse_newspaper_summary(text),
@@ -335,6 +314,7 @@ def parse_pdf(pdf_path):
         import traceback
         traceback.print_exc(file=sys.stderr)
         return None
+
 def main():
     if len(sys.argv) != 2:
         print("Usage: python parse_looplijst.py <pdf_file_path>", file=sys.stderr)
@@ -355,7 +335,6 @@ def main():
     result = parse_pdf(pdf_path)
    
     if result:
-        # Create output JSON file in same directory
         json_path = pdf_path.with_suffix('.json')
        
         with open(json_path, 'w', encoding='utf-8') as f:
@@ -367,5 +346,6 @@ def main():
     else:
         print("✗ Failed to parse PDF", file=sys.stderr)
         sys.exit(1)
+
 if __name__ == '__main__':
     main()
