@@ -72,7 +72,7 @@ function highlightSidebarItems(deliveryIds) {
                 setTimeout(() => {
                     element.classList.remove('highlight-flash');
                 }, 2000);
-            }, 300); // Small delay for smooth scroll to complete first
+            }, 300);
         }
     });
 }
@@ -87,19 +87,23 @@ function createMarkers() {
     
     let bounds = [];
     
-    // Group deliveries by address (street + house number)
+    // Group deliveries by address INCLUDING unit/name identifier
+    // This ensures 284 RD and 284 ZW are treated as separate addresses
     const addressGroups = new Map();
     
     routeData.delivery_route.forEach((street, streetIndex) => {
         street.deliveries.forEach((delivery, deliveryIndex) => {
             if (delivery.lat && delivery.lon) {
-                const addressKey = `${street.street}|${delivery.house_number}`;
+                // Include name/unit in the key to distinguish different units at same building
+                const unitIdentifier = delivery.name || '';
+                const addressKey = `${street.street}|${delivery.house_number}|${unitIdentifier}`;
                 
                 if (!addressGroups.has(addressKey)) {
                     addressGroups.set(addressKey, {
                         street: street.street,
                         city: street.city,
                         houseNumber: delivery.house_number,
+                        unitName: delivery.name,
                         lat: delivery.lat,
                         lon: delivery.lon,
                         deliveries: []
@@ -115,9 +119,9 @@ function createMarkers() {
         });
     });
     
-    // Create one marker per address
+    // Create one marker per address (including unit distinction)
     addressGroups.forEach((addressData) => {
-        const { street, city, houseNumber, lat, lon, deliveries } = addressData;
+        const { street, city, houseNumber, unitName, lat, lon, deliveries } = addressData;
         
         // Calculate completion status
         const completedCount = deliveries.filter(d => completedDeliveries.has(d.id)).length;
@@ -136,8 +140,9 @@ function createMarkers() {
             icon: getMarkerIcon(completionStatus)
         }).addTo(map);
         
-        // Build popup content
-        let popupContent = `<div class="popup-house">${street} ${houseNumber}</div>`;
+        // Build popup content with unit identifier if present
+        const displayAddress = unitName ? `${street} ${houseNumber} (${unitName})` : `${street} ${houseNumber}`;
+        let popupContent = `<div class="popup-house">${displayAddress}</div>`;
         
         deliveries.forEach(delivery => {
             const isCompleted = completedDeliveries.has(delivery.id);
@@ -157,13 +162,11 @@ function createMarkers() {
         
         // Click behavior
         if (deliveries.length === 1) {
-            // Single delivery: toggle on click and highlight in sidebar
             marker.on('click', () => {
                 toggleDelivery(deliveries[0].id);
                 highlightSidebarItems(deliveryIds);
             });
         } else {
-            // Multiple deliveries: show popup and highlight all in sidebar
             marker.on('click', () => {
                 highlightSidebarItems(deliveryIds);
             });
@@ -172,7 +175,7 @@ function createMarkers() {
         markers.push({ 
             marker, 
             deliveryIds: deliveryIds,
-            addressKey: `${street}|${houseNumber}`
+            addressKey: `${street}|${houseNumber}|${unitName || ''}`
         });
         
         bounds.push([lat, lon]);
@@ -187,7 +190,6 @@ function createMarkers() {
 // Update marker colors
 function updateMarkers() {
     markers.forEach(({ marker, deliveryIds }) => {
-        // Calculate completion status for this address
         const completedCount = deliveryIds.filter(id => completedDeliveries.has(id)).length;
         const totalCount = deliveryIds.length;
         
@@ -202,10 +204,12 @@ function updateMarkers() {
         
         marker.setIcon(getMarkerIcon(completionStatus));
         
-        // Update popup content
         const addressData = getAddressDataByIds(deliveryIds);
         if (addressData) {
-            let popupContent = `<div class="popup-house">${addressData.street} ${addressData.houseNumber}</div>`;
+            const displayAddress = addressData.unitName ? 
+                `${addressData.street} ${addressData.houseNumber} (${addressData.unitName})` : 
+                `${addressData.street} ${addressData.houseNumber}`;
+            let popupContent = `<div class="popup-house">${displayAddress}</div>`;
             
             addressData.deliveries.forEach(delivery => {
                 const isCompleted = completedDeliveries.has(delivery.id);
@@ -236,7 +240,6 @@ function getAddressDataByIds(deliveryIds) {
     const firstDelivery = street.deliveries[deliveryIndex];
     if (!firstDelivery) return null;
     
-    // Get all deliveries for this address
     const deliveries = deliveryIds.map(id => {
         const [sIdx, dIdx] = id.split('-').map(Number);
         const s = routeData.delivery_route[sIdx];
@@ -251,6 +254,7 @@ function getAddressDataByIds(deliveryIds) {
     return {
         street: street.street,
         houseNumber: firstDelivery.house_number,
+        unitName: firstDelivery.name,
         deliveries
     };
 }
@@ -265,7 +269,6 @@ function centerMapOnDelivery(deliveryId) {
             duration: 0.5
         });
         
-        // Optional: Open popup briefly to show which marker
         markerData.marker.openPopup();
         setTimeout(() => {
             markerData.marker.closePopup();
