@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "distribution_date": "2026-01-08",
+    "distribution_date": "2026-01-09",
     "document_type": "Looplijst",
     "element_type": "2",
     "element_number": "10024207",
     "route_code": "2OO2 O46 1OO242O7",
     "area": "HDC HD",
-    "generated_on": "07-01-2026 12:17"
+    "generated_on": "08-01-2026 12:20"
   },
   "newspaper_summary": [],
   "complaints": [],
@@ -84,6 +84,11 @@
         {
           "house_number": "224",
           "newspaper": "HD"
+        },
+        {
+          "house_number": "264",
+          "newspaper": "TEL",
+          "name": "M---VZ-"
         },
         {
           "house_number": "286",
@@ -252,10 +257,6 @@
         {
           "house_number": "81",
           "newspaper": "HD"
-        },
-        {
-          "house_number": "85",
-          "newspaper": "TR"
         },
         {
           "house_number": "86",
