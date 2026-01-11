@@ -53,11 +53,13 @@ update_sample_wijklijst() {
     # Find latest PDF
     pushd "$downloads_dir" > /dev/null
     local latest_relative
-    latest_relative=$(ls -lt . 2>/dev/null | grep Wijk | grep pdf | head -1 | awk '{print $NF}')
+    # Changed to *.pdf to get the absolute latest PDF regardless of name pattern
+    # ls -t sorts by time (newest first), head -n 1 gets the first one
+    latest_relative=$(ls -t *.pdf 2>/dev/null | head -n 1)
     popd > /dev/null
 
     if [[ -z "$latest_relative" ]]; then
-        zorgdk_print_error "No Wijklijst*.pdf found in $downloads_dir"
+        zorgdk_print_error "No PDF files found in $downloads_dir"
         return 1
     fi
 
@@ -102,7 +104,7 @@ update_sample_wijklijst() {
 
         cd $PRIVATE_DIR
         ga $sample_dir
-        agaimcp "Updated sample.json from latest Wijklijst PDF at $(date) ."
+        agaimcp "Updated sample.json from latest PDF ($latest_relative) at $(date) ."
         manage_site_visibility
 
         return 0
