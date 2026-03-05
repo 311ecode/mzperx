@@ -99,7 +99,7 @@ def parse_newspaper_summary(text):
     table_section = text[table_start:complaint_start]
     lines = table_section.split('\n')[1:]
    
-    newspaper_codes = ['HDC', 'TEL', 'NRC', 'AD', 'ND', 'HFD', 'TR', 'VK', 'HP']
+    newspaper_codes = ['HDC', 'TEL', 'NRC', 'AD', 'ND', 'HFD', 'TR', 'VK', 'HP', 'KW']
    
     for line in lines:
         line = line.strip()
@@ -200,7 +200,7 @@ def parse_delivery_route(text):
     lines = route_section.split('\n')
    
     street_suffixes = ['STRAAT', 'WEG', 'LAAN', 'PLEIN', 'SINGEL', 'GRACHT', 'KADE', 'DIJK', 'PAD']
-    newspaper_codes = ['HD', 'TEL', 'VK', 'NRC', 'AD', 'ND', 'HFD', 'TR', 'HP']
+    newspaper_codes = ['HD', 'TEL', 'VK', 'NRC', 'AD', 'ND', 'HFD', 'TR', 'HP', 'KW']
    
     current_street = None
     current_city = 'HAARLEM'
