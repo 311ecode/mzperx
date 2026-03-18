@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "distribution_date": "2026-03-18",
+    "distribution_date": "2026-03-19",
     "document_type": "Looplijst",
     "element_type": "2",
     "element_number": "10024207",
     "route_code": "2OO2 O46 1OO242O7",
     "area": "HDC HD",
-    "generated_on": "17-03-2026 12:17"
+    "generated_on": "18-03-2026 12:17"
   },
   "newspaper_summary": [],
   "complaints": [],
@@ -160,6 +160,11 @@
         {
           "house_number": "129",
           "newspaper": "TEL"
+        },
+        {
+          "house_number": "132",
+          "newspaper": "KW",
+          "name": "DO"
         },
         {
           "house_number": "134",
