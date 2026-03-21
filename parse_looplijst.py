@@ -345,19 +345,31 @@ def parse_delivery_route(text: str) -> list:
 
         # --- Delivery line ---
         # Format: "<house_number> [annotation_tokens...] <NEWSPAPER_CODE> [name...]"
+        # Annotation tokens (e.g. ZWAR, RD) appear between house number and code.
         m = re.match(r'^([0-9O]+[A-Za-z]?)\s+(.+)$', slot)
         if m and col_streets[col_idx]:
             house_number = fix_ocr(m.group(1))
-            # First newspaper code token anywhere after the house number
-            newspaper = next(
-                (tok for tok in m.group(2).split() if tok in NEWSPAPER_CODES),
-                None,
-            )
+            tokens       = m.group(2).split()
+            # Collect annotation tokens that appear BEFORE the first newspaper code
+            annotation_tokens = []
+            newspaper         = None
+            for tok in tokens:
+                if tok in NEWSPAPER_CODES:
+                    newspaper = tok
+                    break
+                annotation_tokens.append(tok)
             if newspaper:
-                col_delivs[col_idx].append({
+                entry: dict = {
                     'house_number': house_number,
                     'newspaper':    newspaper,
-                })
+                }
+                # Only add annotation if there are tokens AND they look like
+                # route/delivery codes (all-uppercase, not subscriber names)
+                if annotation_tokens:
+                    ann = ' '.join(annotation_tokens)
+                    if re.match(r'^[A-Z0-9 \-]+$', ann):
+                        entry['annotation'] = ann
+                col_delivs[col_idx].append(entry)
 
     # --- Main line loop ---
     for raw_line in text.splitlines():

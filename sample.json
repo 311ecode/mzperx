@@ -337,11 +337,13 @@
       "deliveries": [
         {
           "house_number": "252",
-          "newspaper": "HD"
+          "newspaper": "HD",
+          "annotation": "ZWAR"
         },
         {
           "house_number": "284",
-          "newspaper": "VK"
+          "newspaper": "VK",
+          "annotation": "RD"
         }
       ]
     },
