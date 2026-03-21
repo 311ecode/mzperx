@@ -11,11 +11,13 @@ with the same base name and a .json extension.
 
 Requirements:
     pip install pdfplumber
+    apt install poppler-utils   (provides pdftotext)
 """
 
 import sys
 import json
 import re
+import subprocess
 from pathlib import Path
 
 try:
@@ -36,16 +38,37 @@ STREET_SUFFIXES = (
     'KADE', 'DIJK', 'PAD', 'DREEF', 'ALLEE', 'BOULEVARD',
 )
 
-# Lines that appear in the route section but are NOT deliveries or street names
-NOISE_PATTERNS = re.compile(
+KNOWN_NEWSPAPERS = {
+    'HDC': ('HD',  'Haarlems Dagblad'),
+    'TEL': ('LAN', 'Telegraaf Landelijk'),
+    'NRC': ('NRC', 'NRC'),
+    'AD':  ('AD',  'Algemeen Dagblad NLD'),
+    'ND':  ('ND',  'Nederlands Dagblad'),
+    'HFD': ('HFD', 'Het Financieele Dagblad'),
+    'TR':  ('TR',  'Trouw'),
+    'VK':  ('VK',  'Volkskrant'),
+    'HP':  ('HP',  'Het Parool'),
+    'KW':  ('KW',  'Kwartaalblad'),
+}
+
+# pdftotext -layout column x-positions (char indices in each physical row)
+# Col 0: left route column   →   0 – 110
+# Col 1: middle route column → 111 – 206
+# Col 2: right route column  → 207 – end  (also holds summary table on page 1)
+COL_BOUNDS = [(0, 110), (111, 206), (207, 9999)]
+
+# Noise lines to skip inside the route section
+NOISE_RE = re.compile(
     r'^('
-    r'huisnr\s+\d+'           # annotation: "huisnr 590"
-    r'|doorduwen'             # annotation: "doorduwen"
-    r'|krant\s+goed'          # annotation: "Krant goed doorduwen"
-    r'|doc\.nr\.'             # page footer
-    r'|pagina\s+'             # page footer
-    r'|powered\s+by'          # tcpdf footer
-    r'|wijklijst\s*:'         # page header continuation
+    r'huisnr\s'
+    r'|doorduwen'
+    r'|krant\s+goed'
+    r'|doc\.nr\.'
+    r'|pagina\s'
+    r'|powered\s'
+    r'|wijklijst\s*:'
+    r'|\x0c'
+    r'|[A-Z0-9][A-Z0-9]*(?:-+[A-Z0-9]*){2,}-?$'  # delivery schedule codes: M---VZ-, MA-VR-ZA
     r')',
     re.IGNORECASE,
 )
@@ -56,13 +79,12 @@ NOISE_PATTERNS = re.compile(
 # ---------------------------------------------------------------------------
 
 def fix_ocr(s: str) -> str:
-    """Replace OCR artefact O→0 only in numeric-looking contexts."""
-    # Replace standalone O that looks like zero in house numbers / dates
+    """Replace OCR artefact uppercase-O → 0."""
     return s.replace('O', '0')
 
 
 def format_date(date_str: str) -> str:
-    """Normalise date to YYYY-MM-DD, handling DD-MM-YYYY and O→0 artefacts."""
+    """Normalise to YYYY-MM-DD. Handles DD-MM-YYYY input and O→0 artefacts."""
     cleaned = fix_ocr(date_str)
     parts = cleaned.split('-')
     if len(parts) != 3:
@@ -76,45 +98,63 @@ def format_date(date_str: str) -> str:
     return f"{year}-{month.zfill(2)}-{day.zfill(2)}"
 
 
-def is_street_header(line: str) -> bool:
-    """Return True if the line looks like a street header."""
-    if not line:
-        return False
-    # Must be all-uppercase (letters, spaces, digits only in the name part after comma)
-    # Street headers never contain a newspaper code as the last token alone
-    tokens = line.split()
-    if not tokens:
-        return False
-    # Contains a known street suffix → definitely a street
-    for suffix in STREET_SUFFIXES:
-        if suffix in line:
-            return True
-    return False
+def clean_street_name(s: str) -> str:
+    """
+    Strip leading annotation tokens from a slot that may prefix the street name.
+    e.g. "M---VZ-  REIGERSTRAAT" → "REIGERSTRAAT"
+         "REIJER ANSLOSTRAAT"    → "REIJER ANSLOSTRAAT"  (unchanged)
+         "P.C. HOOFTSTRAAT"      → "P.C. HOOFTSTRAAT"   (unchanged)
 
+    Two kinds of annotation tokens to strip:
+    1. No letters at all:          purely symbolic like "---"
+    2. Letters+multiple-dashes:   delivery-schedule codes like "M---VZ-", "MA-VR-ZA"
+       (real street tokens with dashes like SINT-BAVOSTRAAT have only ONE dash)
+    """
+    tokens = s.split()
+    annotation_re = re.compile(
+        r'^[^A-Za-z]+$'               # no letters at all
+        r'|^[A-Z0-9]+(-+[A-Z0-9]*){2,}-?$'  # letters+2-or-more-dash-groups: M---VZ-
+    )
+    while tokens and annotation_re.match(tokens[0]):
+        tokens.pop(0)
+    return ' '.join(tokens)
+
+
+def is_street_header(s: str) -> bool:
+    """
+    True if s (after cleaning) is an all-caps street name.
+    Handles: P.C. HOOFTSTRAAT, SINT-BAVOSTRAAT, ANTONIDES VD GOESSTRAAT
+    Rejects:  mixed-case lines like "Vondelweg 440" (complaint addresses)
+    """
+    if not s:
+        return False
+    cleaned = clean_street_name(s)
+    check = re.sub(r'[.\-]', ' ', cleaned.split(',')[0]).strip()
+    # Must be all-uppercase (letters, digits, spaces — no lowercase)
+    if not re.match(r'^[A-Z][A-Z0-9 ]+$', check):
+        return False
+    return any(suffix in check for suffix in STREET_SUFFIXES)
+
+
+# ---------------------------------------------------------------------------
+# Text extraction
+# ---------------------------------------------------------------------------
 
 def extract_text_from_pdf(pdf_path: Path) -> str:
     """
-    Extract text from all pages using a 3-column crop strategy for page 1
-    (which has a wide summary table on the right) and full-page for page 2+.
-    The delivery route spans both pages so we collect a single text blob.
+    pdftotext -layout preserves spatial column x-positions, giving us clean
+    fixed-width rows we can slice into column slots.
+    Falls back to pdfplumber if pdftotext is unavailable.
     """
-    with pdfplumber.open(pdf_path) as pdf:
-        parts = []
-        for page_num, page in enumerate(pdf.pages):
-            pw, ph = page.width, page.height
-            if page_num == 0:
-                # Page 1: three columns — left two hold the route, right holds summary
-                for i in range(3):
-                    col = page.crop((i * pw / 3, 0, (i + 1) * pw / 3, ph))
-                    ct = col.extract_text()
-                    if ct:
-                        parts.append(ct)
-            else:
-                # Page 2+: full page
-                ct = page.extract_text()
-                if ct:
-                    parts.append(ct)
-        return '\n'.join(parts)
+    try:
+        result = subprocess.run(
+            ['pdftotext', '-layout', str(pdf_path), '-'],
+            capture_output=True, text=True, check=True,
+        )
+        return result.stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        with pdfplumber.open(pdf_path) as pdf:
+            return '\n'.join(page.extract_text() or '' for page in pdf.pages)
 
 
 # ---------------------------------------------------------------------------
@@ -135,17 +175,14 @@ def extract_metadata(text: str) -> dict:
             val = m.group(1).strip()
             metadata[key] = format_date(val) if key == 'distribution_date' else val
 
-    # Route code: first token(s) after </ronde>
     m = re.search(r'</ronde>\s*\n\s*([0-9O ]+)', text)
     if m:
         metadata['route_code'] = fix_ocr(m.group(1).strip())
 
-    # Area name: uppercase word(s) before WIJKLIJST on same/nearby line
-    m = re.search(r'\n([A-Z][A-Z ]+[A-Z])\s*\n.*WIJKLIJST', text)
+    m = re.search(r'\n([A-Z][A-Z ]+)\s*\nWIJKLIJST', text)
     if m:
         metadata['area'] = m.group(1).strip()
 
-    # Generated timestamp
     m = re.search(r'gegenereerd op ([O0-9\-]+ [O0-9:]+)', text)
     if m:
         metadata['generated_on'] = fix_ocr(m.group(1))
@@ -157,45 +194,25 @@ def extract_metadata(text: str) -> dict:
 # Newspaper summary
 # ---------------------------------------------------------------------------
 
-KNOWN_NEWSPAPERS = {
-    'HDC': ('HD',  'Haarlems Dagblad'),
-    'TEL': ('LAN', 'Telegraaf Landelijk'),
-    'NRC': ('NRC', 'NRC'),
-    'AD':  ('AD',  'Algemeen Dagblad NLD'),
-    'ND':  ('ND',  'Nederlands Dagblad'),
-    'HFD': ('HFD', 'Het Financieele Dagblad'),
-    'TR':  ('TR',  'Trouw'),
-    'VK':  ('VK',  'Volkskrant'),
-    'HP':  ('HP',  'Het Parool'),
-    'KW':  ('KW',  'Kwartaalblad'),
-}
-
-
 def parse_newspaper_summary(text: str) -> list:
     """
-    The summary table is split across columns by the crop strategy:
-    - Col 0 has: "HDC HD", "TEL LA", "NRC NR" ... (codes + truncated names)
-    - Col 2 has: "O 47 47 O O 47", "O 16 15 O 1 16" ... (the 6 numbers)
-
-    Strategy: find all 6-number rows in the text in order, then zip them
-    with the known newspaper order (HDC, TEL, NRC, ...).
+    Summary rows look like: O  47  47  O  O  47  (exactly 6 O/digit tokens).
+    We find all such rows and zip them with the known newspaper order.
     """
-    # Collect all rows of exactly 6 O/0-digit tokens in sequence
-    num_row_pattern = re.compile(
-        r'^([O0]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s*$'
+    num_row_re = re.compile(
+        r'^\s*([O0]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s*$'
     )
     number_rows = []
-    for line in text.split('\n'):
-        m = num_row_pattern.match(line.strip())
+    for line in text.splitlines():
+        m = num_row_re.match(line)
         if m:
             number_rows.append([int(fix_ocr(m.group(i))) for i in range(1, 7)])
 
     newspapers = []
-    ordered_codes = list(KNOWN_NEWSPAPERS.keys())
     for i, nums in enumerate(number_rows):
-        if i >= len(ordered_codes):
+        if i >= len(KNOWN_NEWSPAPERS):
             break
-        code = ordered_codes[i]
+        code = list(KNOWN_NEWSPAPERS.keys())[i]
         edition, name = KNOWN_NEWSPAPERS[code]
         newspapers.append({
             'code':              code,
@@ -218,156 +235,177 @@ def parse_newspaper_summary(text: str) -> list:
 
 def parse_complaints(text: str) -> list:
     """
-    Due to the 3-column crop, the complaint fields are split across columns:
-    - Col 0: "NIET BIJLAGE  21-O3-2O26  VK"
-    - Col 1: "ZA  Gruttostraat 8, HAARLEM"
-    - Col 2: "Bank"
-
-    We parse each part from its column section and reassemble.
+    With pdftotext -layout the full complaint is one line:
+      "NIET KRANT  21-O3-2O26  HD  MA-ZA  Vondelweg 440, HAARLEM  Galen"
     """
     complaints = []
+    in_complaints = False
 
-    # Part 1: type + date + product (col 0)
-    m1 = re.search(
-        r'(NIET\s+BIJLAGE|NIET\s+KRANT|VERKEERD\s+KRANT|VERKEERD)\s+'
-        r'(\d{2}-\d{2}-\d{4}|[O0-9]{2}-[O0-9]{2}-[O0-9]{4})\s+'
-        r'([A-Z]+)',
-        text,
-    )
-    if not m1:
-        return complaints
+    for line in text.splitlines():
+        stripped = line.strip()
 
-    complaint_type = m1.group(1).strip()
-    date           = format_date(m1.group(2))
-    product        = m1.group(3)
+        if re.search(r'\bKlacht\b', stripped):
+            in_complaints = True
+            continue
 
-    # Part 2: abovorm + address (col 1 — appears near "Abovorm Adres" header)
-    m2 = re.search(r'Abovorm Adres\s*\n([A-Z]+)\s+(.+?,\s*[A-Z]+)', text)
-    subscription = m2.group(1).strip() if m2 else ''
-    address      = m2.group(2).strip() if m2 else ''
+        if not in_complaints or not stripped:
+            continue
 
-    # Part 3: name (col 2 — appears after "Naam" header, before next street)
-    m3 = re.search(r'\bNaam\s*\n([A-Za-z][^\n]+)', text)
-    name = m3.group(1).strip() if m3 else ''
+        if 'EINDE WIJKLIJST' in stripped:
+            break
 
-    complaints.append({
-        'type':              complaint_type,
-        'date':              date,
-        'product':           product,
-        'subscription_type': subscription,
-        'address':           address,
-        'name':              name,
-    })
+        m = re.match(
+            r'^(NIET\s+BIJLAGE|NIET\s+KRANT|VERKEERD\s+KRANT|VERKEERD)\s+'
+            r'(\S+)\s+'            # date
+            r'([A-Z]+)\s+'         # product
+            r'([A-Z][A-Z\-]*)\s+'  # abovorm / subscription type
+            r'(.+?,\s*[A-Z]+)'     # address incl city
+            r'(?:\s+(.+))?$',      # optional name
+            stripped,
+        )
+        if m:
+            complaints.append({
+                'type':              m.group(1).strip(),
+                'date':              format_date(m.group(2)),
+                'product':           m.group(3),
+                'subscription_type': m.group(4),
+                'address':           fix_ocr(m.group(5).strip()),
+                'name':              (m.group(6) or '').strip(),
+            })
 
     return complaints
 
 
 # ---------------------------------------------------------------------------
-# Delivery route  ← this is where the original bug was
+# Delivery route
 # ---------------------------------------------------------------------------
 
 def parse_delivery_route(text: str) -> list:
     """
-    Delivery route starts after the last complaint (look for the complaint
-    name field, then the next street header) and ends at EINDE WIJKLIJST.
+    pdftotext -layout gives fixed-width rows. Each physical row spans up to 3
+    route columns side by side (col boundaries measured from actual PDFs):
+        Col 0:   0 – 110
+        Col 1: 111 – 206
+        Col 2: 207 – end  (also contains summary table on page 1 — ignored)
 
-    Bug fix: the original parser started at VONDELWEG, missing all streets
-    that appear earlier in the document.
+    We track three independent column states (current street + deliveries),
+    flush each when a new street header appears in that column, then at the end
+    merge all entries by street name to reunite splits across pages/columns.
+
+    The final list preserves the order in which each street *first* appears.
     """
-    delivery_route = []
+    # Per-column state
+    col_streets  = [None, None, None]
+    col_cities   = ['HAARLEM', 'HAARLEM', 'HAARLEM']
+    col_delivs   = [[], [], []]
 
-    # Find start: first street header after 'Naam\n<name>\n'
-    # Reliable anchor: the text just after the complaints block ends.
-    # We detect this by finding 'ANTONIDES' (first street) or more robustly
-    # by finding the first all-caps street-suffix line after the complaint header.
-    route_end_idx = text.find('EINDE WIJKLIJST')
-    if route_end_idx == -1:
-        route_end_idx = len(text)
+    delivery_route: list = []
+    in_route = False
 
-    # Find the complaint header, then scan forward for first street
-    complaint_header = text.find('Klacht Datum Product')
-    scan_from = complaint_header if complaint_header != -1 else 0
+    def flush_col(i: int):
+        """Append col i's current street+deliveries to delivery_route, then reset."""
+        if col_streets[i] and col_delivs[i]:
+            delivery_route.append({
+                'street':     col_streets[i],
+                'city':       col_cities[i],
+                'deliveries': list(col_delivs[i]),
+            })
+        col_streets[i] = None
+        col_cities[i]  = 'HAARLEM'
+        col_delivs[i]  = []
 
-    # Walk lines to find where the route actually begins
-    all_lines = text[scan_from:route_end_idx].split('\n')
-    route_start_line = None
-    for i, line in enumerate(all_lines):
-        if is_street_header(line.strip()):
-            route_start_line = i
-            break
+    def process_slot(raw_slot: str, col_idx: int):
+        """
+        Classify one column slot as either a street header or a delivery line.
 
-    if route_start_line is None:
-        return delivery_route
+        A slot may prefix the street name with an annotation token, e.g.:
+            "M---VZ- REIGERSTRAAT"  →  strip "M---VZ-", use "REIGERSTRAAT"
+        We do this by finding the shortest right-aligned suffix that still
+        contains a known street suffix — annotations never contain street words.
+        """
+        slot = raw_slot.strip()
+        if not slot:
+            return
+        if NOISE_RE.match(slot):
+            return
 
-    route_lines = all_lines[route_start_line:]
+        # --- Street header detection ---
+        # Only try if the slot does NOT start with a digit (delivery lines do)
+        if not re.match(r'^[0-9]|^O[0-9]', slot):  # O only = digit if followed by digit (OCR zero)
+            cleaned = clean_street_name(slot)
+            if is_street_header(cleaned):
+                flush_col(col_idx)
+                if ',' in cleaned:
+                    parts = cleaned.split(',', 1)
+                    col_streets[col_idx] = parts[0].strip()
+                    col_cities[col_idx]  = parts[1].strip()
+                else:
+                    col_streets[col_idx] = cleaned
+                return
 
-    current_street = None
-    current_city   = 'HAARLEM'
-    deliveries     = []
-
-    for line in route_lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        # Skip noise lines (annotations, footers, headers)
-        if NOISE_PATTERNS.match(line):
-            continue
-
-        # House number + newspaper code line
-        # Matches: "508 TEL", "930 HD", "97 NRC", "105 TEL", "8O6 HD" etc.
-        m = re.match(r'^([0-9O]+[A-Za-z]?)\s+([A-Z]+)$', line)
-        if m:
+        # --- Delivery line ---
+        # Format: "<house_number> [annotation_tokens...] <NEWSPAPER_CODE> [name...]"
+        m = re.match(r'^([0-9O]+[A-Za-z]?)\s+(.+)$', slot)
+        if m and col_streets[col_idx]:
             house_number = fix_ocr(m.group(1))
-            newspaper    = m.group(2)
-            if newspaper in NEWSPAPER_CODES and current_street:
-                deliveries.append({
+            # First newspaper code token anywhere after the house number
+            newspaper = next(
+                (tok for tok in m.group(2).split() if tok in NEWSPAPER_CODES),
+                None,
+            )
+            if newspaper:
+                col_delivs[col_idx].append({
                     'house_number': house_number,
                     'newspaper':    newspaper,
                 })
+
+    # --- Main line loop ---
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+
+        if 'EINDE WIJKLIJST' in stripped:
+            break
+
+        if not in_route:
+            if re.search(r'\bKlacht\b', stripped):
+                in_route = True
             continue
 
-        # Street header  (may include city: "ANTONIDES VD GOESSTRAAT, HAARLEM")
-        if is_street_header(line):
-            # Save previous street
-            if current_street and deliveries:
-                delivery_route.append({
-                    'street':     current_street,
-                    'city':       current_city,
-                    'deliveries': deliveries,
-                })
-            elif current_street and not deliveries:
-                # Street with no deliveries yet — keep accumulating
-                # (can happen when a street is split across columns)
-                pass
-
-            if ',' in line:
-                parts = line.split(',', 1)
-                current_street = parts[0].strip()
-                current_city   = parts[1].strip()
-            else:
-                current_street = line.strip()
-                current_city   = 'HAARLEM'
-            deliveries = []
+        if NOISE_RE.match(stripped):
             continue
 
-    # Flush last street
-    if current_street and deliveries:
-        delivery_route.append({
-            'street':     current_street,
-            'city':       current_city,
-            'deliveries': deliveries,
-        })
+        # Slice into column slots
+        for col_idx, (start, end) in enumerate(COL_BOUNDS):
+            slot = raw_line[start:min(end, len(raw_line))]
+            process_slot(slot, col_idx)
 
-    # Merge consecutive duplicate street entries (column-split artifact)
-    merged = []
+    # Flush remaining column state
+    for i in range(3):
+        flush_col(i)
+
+    # Merge all entries with the same (street, city) key, preserving first-seen order.
+    # This handles column-split fragments that may be non-consecutive in the list
+    # (e.g. REIJER ANSLOSTRAAT first appears in col2, then continues in col1).
+    from collections import OrderedDict
+    seen: dict = OrderedDict()
     for entry in delivery_route:
-        if merged and merged[-1]['street'] == entry['street'] and merged[-1]['city'] == entry['city']:
-            merged[-1]['deliveries'].extend(entry['deliveries'])
+        key = (entry['street'], entry['city'])
+        if key in seen:
+            seen[key].extend(entry['deliveries'])
         else:
-            merged.append(entry)
+            seen[key] = list(entry['deliveries'])
 
-    return merged
+    return [
+        {
+            'street':     street,
+            'city':       city,
+            'deliveries': sorted(
+                deliveries,
+                key=lambda d: int(re.sub(r'[^0-9]', '', d['house_number']) or '0')
+            ),
+        }
+        for (street, city), deliveries in seen.items()
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -391,7 +429,8 @@ def parse_pdf(pdf_path: Path) -> dict | None:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 parse_looplijst.py <input.pdf> [output.json]", file=sys.stderr)
+        print("Usage: python3 parse_looplijst.py <input.pdf> [output.json]",
+              file=sys.stderr)
         sys.exit(1)
 
     pdf_path = Path(sys.argv[1])
@@ -402,7 +441,10 @@ def main():
         print(f"Error: not a PDF file: {pdf_path}", file=sys.stderr)
         sys.exit(1)
 
-    json_path = Path(sys.argv[2]) if len(sys.argv) >= 3 else pdf_path.with_suffix('.json')
+    json_path = (
+        Path(sys.argv[2]) if len(sys.argv) >= 3
+        else pdf_path.with_suffix('.json')
+    )
 
     print(f"Parsing: {pdf_path}", file=sys.stderr)
     result = parse_pdf(pdf_path)
@@ -414,7 +456,7 @@ def main():
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 
-    streets = len(result['delivery_route'])
+    streets    = len(result['delivery_route'])
     deliveries = sum(len(s['deliveries']) for s in result['delivery_route'])
     print(f"✓ {streets} streets, {deliveries} deliveries → {json_path}", file=sys.stderr)
     print(json_path)
