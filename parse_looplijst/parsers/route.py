@@ -1,35 +1,84 @@
 import re
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 
-from ..helpers import fix_ocr, is_street_header, clean_street_name, NEWSPAPER_CODES, COL_BOUNDS, NOISE_RE
+from ..helpers import fix_ocr, is_street_header, clean_street_name, NEWSPAPER_CODES, NOISE_RE
+
+
+def _detect_columns(text: str) -> list[tuple[int, int]]:
+    """
+    Auto-detect column x-positions by finding where street headers appear.
+    Only positions that appear 2+ times are treated as column starts.
+    Applies a left margin to each column start (except col 0) because
+    delivery house numbers may indent a few chars left of their header.
+    """
+    positions = []
+    for line in text.splitlines():
+        for m in re.finditer(r'\S+', line):
+            rest = line[m.start():].split('  ')[0].strip()
+            cleaned = clean_street_name(rest)
+            if is_street_header(cleaned) and len(cleaned) > 4:
+                positions.append(m.start())
+
+    if not positions:
+        return [(0, 9999)]
+
+    counts = Counter(positions)
+    frequent = sorted(p for p, c in counts.items() if c >= 2)
+
+    if not frequent:
+        frequent = [0]
+
+    # Cluster positions within 15 chars of each other
+    clusters = [[frequent[0]]]
+    for p in frequent[1:]:
+        if p - clusters[-1][-1] < 15:
+            clusters[-1].append(p)
+        else:
+            clusters.append([p])
+
+    starts = [min(c) for c in clusters]
+
+    # Delivery house numbers can sit up to ~10 chars left of the street header.
+    # Shift non-first column starts left by a margin, but don't overlap the
+    # midpoint with the previous column's header zone.
+    COL_MARGIN = 10
+    adjusted = [starts[0]]
+    for i in range(1, len(starts)):
+        shifted = max(starts[i] - COL_MARGIN, adjusted[-1] + 1)
+        adjusted.append(shifted)
+
+    bounds = []
+    for i, s in enumerate(adjusted):
+        end = adjusted[i + 1] - 1 if i + 1 < len(adjusted) else 9999
+        bounds.append((s, end))
+
+    return bounds
 
 
 def _find_route_start(text: str) -> int:
     """
     Find the line index where delivery-route columns begin.
-    Primary trigger: a line containing 'Klacht' (complaints header).
-    Fallback: the first line that contains a street header recognised by
-    is_street_header — this handles PDFs that have no complaints section.
+    Primary: a line containing 'Klacht' (complaints header).
+    Fallback: the first street-header line in the body.
     """
     lines = text.splitlines()
-
     for i, line in enumerate(lines):
         if re.search(r'\bKlacht\b', line):
             return i
-
-    # Fallback: first street-header line (skip the summary table area)
     for i, line in enumerate(lines):
         stripped = line.strip()
         if is_street_header(clean_street_name(stripped)):
-            return max(0, i - 1)  # one line before so the street itself is processed
-
+            return max(0, i - 1)
     return -1
 
 
 def parse_delivery_route(text: str) -> list:
-    col_streets = [None, None, None]
-    col_cities  = ['HAARLEM', 'HAARLEM', 'HAARLEM']
-    col_delivs  = [[], [], []]
+    col_bounds = _detect_columns(text)
+    n_cols = len(col_bounds)
+
+    col_streets = [None] * n_cols
+    col_cities  = ['HAARLEM'] * n_cols
+    col_delivs  = [[] for _ in range(n_cols)]
     delivery_route: list = []
 
     def flush_col(i: int):
@@ -96,10 +145,12 @@ def parse_delivery_route(text: str) -> list:
             break
         if NOISE_RE.match(stripped):
             continue
-        for col_idx, (lo, hi) in enumerate(COL_BOUNDS):
-            process_slot(raw_line[lo:min(hi, len(raw_line))], col_idx)
 
-    for i in range(3):
+        for col_idx, (lo, hi) in enumerate(col_bounds):
+            if lo < len(raw_line):
+                process_slot(raw_line[lo:min(hi, len(raw_line))], col_idx)
+
+    for i in range(n_cols):
         flush_col(i)
 
     seen: dict = OrderedDict()

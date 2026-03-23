@@ -16,7 +16,6 @@ def parse_newspaper_summary(text: str) -> list:
     )
     number_rows = []
     for line in text.splitlines():
-        # Only consider lines that contain a known newspaper code
         if not any(code in line for code in KNOWN_NEWSPAPERS):
             continue
         m = num_tail_re.search(line)

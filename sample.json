@@ -161,7 +161,69 @@
       ]
     },
     {
-      "street": "REIGERSTRAAT V",
+      "street": "VERGIERDEWEG",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "18",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "39",
+          "newspaper": "HFD"
+        },
+        {
+          "house_number": "53",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "53",
+          "newspaper": "TEL"
+        },
+        {
+          "house_number": "59",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "68",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "69",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "69",
+          "newspaper": "TEL"
+        },
+        {
+          "house_number": "70",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "73",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "81",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "85",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "86",
+          "newspaper": "HP"
+        },
+        {
+          "house_number": "88",
+          "newspaper": "ND"
+        }
+      ]
+    },
+    {
+      "street": "REIGERSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
         {
@@ -263,7 +325,37 @@
       ]
     },
     {
-      "street": "REIJER ANSLOSTRAAT 13",
+      "street": "VINKENSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "13",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "18",
+          "newspaper": "TEL"
+        },
+        {
+          "house_number": "52",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "54",
+          "newspaper": "ND"
+        },
+        {
+          "house_number": "61",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "64",
+          "newspaper": "HD"
+        }
+      ]
+    },
+    {
+      "street": "REIJER ANSLOSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
         {
@@ -303,12 +395,28 @@
       ]
     },
     {
-      "street": "SINT-BAVOSTRAAT 252 Z",
+      "street": "SINT-BAVOSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
         {
           "house_number": "15",
           "newspaper": "VK"
+        }
+      ]
+    },
+    {
+      "street": "VONDELWEG",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "252",
+          "newspaper": "HD",
+          "annotation": "ZWAR"
+        },
+        {
+          "house_number": "284",
+          "newspaper": "VK",
+          "annotation": "RD"
         }
       ]
     },
@@ -331,17 +439,11 @@
       "city": "HAARLEM",
       "deliveries": [
         {
-          "house_number": "50",
+          "house_number": "27",
           "newspaper": "HD"
-        }
-      ]
-    },
-    {
-      "street": "VERGIERDEWEG Z",
-      "city": "HAARLEM",
-      "deliveries": [
+        },
         {
-          "house_number": "18",
+          "house_number": "50",
           "newspaper": "HD"
         }
       ]
