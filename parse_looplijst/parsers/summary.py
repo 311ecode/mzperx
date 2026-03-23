@@ -5,14 +5,21 @@ from ..helpers import fix_ocr, KNOWN_NEWSPAPERS
 
 def parse_newspaper_summary(text: str) -> list:
     """
-    Summary rows look like: O  47  47  O  O  47  (exactly 6 O/digit tokens).
+    Summary rows in pdftotext -layout sit at the END of long lines that also
+    contain the newspaper name, e.g.:
+        HDC   HD   Haarlems Dagblad   O   36   35   O   1   36
+    We search for the trailing 6-number pattern rather than requiring
+    the whole line to be numbers only.
     """
-    num_row_re = re.compile(
-        r'^\s*([O0]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s*$'
+    num_tail_re = re.compile(
+        r'([O0]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s*$'
     )
     number_rows = []
     for line in text.splitlines():
-        m = num_row_re.match(line)
+        # Only consider lines that contain a known newspaper code
+        if not any(code in line for code in KNOWN_NEWSPAPERS):
+            continue
+        m = num_tail_re.search(line)
         if m:
             number_rows.append([int(fix_ocr(m.group(i))) for i in range(1, 7)])
 

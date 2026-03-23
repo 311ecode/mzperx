@@ -7,7 +7,107 @@
     "route_code": "2002 042                                                                                                                  10015851",
     "generated_on": "23-03-2026 12:17"
   },
-  "newspaper_summary": [],
+  "newspaper_summary": [
+    {
+      "code": "HDC",
+      "edition": "HD",
+      "name": "Haarlems Dagblad",
+      "standard_bundles": 0,
+      "loose_copies": 36,
+      "subscriber_count": 35,
+      "lv_count": 0,
+      "leftover_papers": 1,
+      "total_circulation": 36
+    },
+    {
+      "code": "TEL",
+      "edition": "LAN",
+      "name": "Telegraaf Landelijk",
+      "standard_bundles": 0,
+      "loose_copies": 7,
+      "subscriber_count": 7,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 7
+    },
+    {
+      "code": "NRC",
+      "edition": "NRC",
+      "name": "NRC",
+      "standard_bundles": 0,
+      "loose_copies": 2,
+      "subscriber_count": 2,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 2
+    },
+    {
+      "code": "AD",
+      "edition": "AD",
+      "name": "Algemeen Dagblad NLD",
+      "standard_bundles": 0,
+      "loose_copies": 2,
+      "subscriber_count": 2,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 2
+    },
+    {
+      "code": "ND",
+      "edition": "ND",
+      "name": "Nederlands Dagblad",
+      "standard_bundles": 0,
+      "loose_copies": 2,
+      "subscriber_count": 2,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 2
+    },
+    {
+      "code": "HFD",
+      "edition": "HFD",
+      "name": "Het Financieele Dagblad",
+      "standard_bundles": 0,
+      "loose_copies": 2,
+      "subscriber_count": 2,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 2
+    },
+    {
+      "code": "TR",
+      "edition": "TR",
+      "name": "Trouw",
+      "standard_bundles": 0,
+      "loose_copies": 1,
+      "subscriber_count": 1,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 1
+    },
+    {
+      "code": "VK",
+      "edition": "VK",
+      "name": "Volkskrant",
+      "standard_bundles": 0,
+      "loose_copies": 10,
+      "subscriber_count": 10,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 10
+    },
+    {
+      "code": "HP",
+      "edition": "HP",
+      "name": "Het Parool",
+      "standard_bundles": 0,
+      "loose_copies": 2,
+      "subscriber_count": 2,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 2
+    }
+  ],
   "complaints": [],
   "delivery_route": [
     {
