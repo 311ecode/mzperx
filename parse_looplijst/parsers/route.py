@@ -4,12 +4,33 @@ from collections import OrderedDict
 from ..helpers import fix_ocr, is_street_header, clean_street_name, NEWSPAPER_CODES, COL_BOUNDS, NOISE_RE
 
 
+def _find_route_start(text: str) -> int:
+    """
+    Find the line index where delivery-route columns begin.
+    Primary trigger: a line containing 'Klacht' (complaints header).
+    Fallback: the first line that contains a street header recognised by
+    is_street_header — this handles PDFs that have no complaints section.
+    """
+    lines = text.splitlines()
+
+    for i, line in enumerate(lines):
+        if re.search(r'\bKlacht\b', line):
+            return i
+
+    # Fallback: first street-header line (skip the summary table area)
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if is_street_header(clean_street_name(stripped)):
+            return max(0, i - 1)  # one line before so the street itself is processed
+
+    return -1
+
+
 def parse_delivery_route(text: str) -> list:
     col_streets = [None, None, None]
     col_cities  = ['HAARLEM', 'HAARLEM', 'HAARLEM']
     col_delivs  = [[], [], []]
     delivery_route: list = []
-    in_route = False
 
     def flush_col(i: int):
         if col_streets[i] and col_delivs[i]:
@@ -64,18 +85,19 @@ def parse_delivery_route(text: str) -> list:
 
         col_delivs[col_idx].append(entry)
 
-    for raw_line in text.splitlines():
+    lines = text.splitlines()
+    start = _find_route_start(text)
+    if start < 0:
+        return []
+
+    for raw_line in lines[start + 1:]:
         stripped = raw_line.strip()
         if 'EINDE WIJKLIJST' in stripped:
             break
-        if not in_route:
-            if re.search(r'\bKlacht\b', stripped):
-                in_route = True
-            continue
         if NOISE_RE.match(stripped):
             continue
-        for col_idx, (start, end) in enumerate(COL_BOUNDS):
-            process_slot(raw_line[start:min(end, len(raw_line))], col_idx)
+        for col_idx, (lo, hi) in enumerate(COL_BOUNDS):
+            process_slot(raw_line[lo:min(hi, len(raw_line))], col_idx)
 
     for i in range(3):
         flush_col(i)
