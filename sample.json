@@ -149,6 +149,28 @@
       ]
     },
     {
+      "street": "EKSTERLAAN",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "44",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "192",
+          "newspaper": "VK"
+        },
+        {
+          "house_number": "224",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "286",
+          "newspaper": "HD"
+        }
+      ]
+    },
+    {
       "street": "NACHTEGAALSTRAAT 18 VK",
       "city": "HAARLEM",
       "deliveries": [
@@ -175,6 +197,24 @@
       ]
     },
     {
+      "street": "GRUTTOSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "9",
+          "newspaper": "VK"
+        },
+        {
+          "house_number": "20",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "21",
+          "newspaper": "HD"
+        }
+      ]
+    },
+    {
       "street": "OOIEVAARSTRAAT 112 TR",
       "city": "HAARLEM",
       "deliveries": [
@@ -185,6 +225,26 @@
         {
           "house_number": "122",
           "newspaper": "VK"
+        }
+      ]
+    },
+    {
+      "street": "LEEUWERIKSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "5",
+          "newspaper": "HD"
+        }
+      ]
+    },
+    {
+      "street": "LIJSTERSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "5",
+          "newspaper": "NRC"
         }
       ]
     },

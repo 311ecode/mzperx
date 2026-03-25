@@ -4,15 +4,39 @@ from collections import Counter, OrderedDict
 from ..helpers import fix_ocr, is_street_header, clean_street_name, NOISE_RE
 
 
-def _detect_columns(text: str) -> list[tuple[int, int]]:
+def _find_route_start(text: str) -> int:
+    """
+    Find the line index where delivery-route columns begin.
+    Primary: a line containing 'Klacht' (complaints header).
+    Fallback: the first street-header line in the body.
+    """
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if re.search(r'\bKlacht\b', line):
+            return i
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if is_street_header(clean_street_name(stripped)):
+            return max(0, i - 1)
+    return -1
+
+
+def _detect_columns(text: str, start_line: int) -> list[tuple[int, int]]:
     """
     Auto-detect column x-positions by finding where street headers appear.
+    Only scans lines AFTER start_line to avoid false positives from
+    complaint/mutation addresses that also contain street names.
     Only positions that appear 2+ times are treated as column starts.
     Applies a left margin to non-first columns because delivery house
     numbers may indent a few chars left of their header.
     """
+    lines = text.splitlines()
     positions = []
-    for line in text.splitlines():
+    for line in lines[start_line + 1:]:
+        if 'EINDE WIJKLIJST' in line:
+            break
+        if NOISE_RE.match(line.strip()):
+            continue
         for m in re.finditer(r'\S+', line):
             rest = line[m.start():].split('  ')[0].strip()
             cleaned = clean_street_name(rest)
@@ -28,6 +52,7 @@ def _detect_columns(text: str) -> list[tuple[int, int]]:
     if not frequent:
         frequent = [0]
 
+    # Cluster positions within 15 chars of each other
     clusters = [[frequent[0]]]
     for p in frequent[1:]:
         if p - clusters[-1][-1] < 15:
@@ -37,6 +62,9 @@ def _detect_columns(text: str) -> list[tuple[int, int]]:
 
     starts = [min(c) for c in clusters]
 
+    # Delivery house numbers can sit up to ~10 chars left of the street header.
+    # Shift non-first column starts left by a margin, but don't overlap the
+    # midpoint with the previous column's header zone.
     COL_MARGIN = 10
     adjusted = [starts[0]]
     for i in range(1, len(starts)):
@@ -51,25 +79,17 @@ def _detect_columns(text: str) -> list[tuple[int, int]]:
     return bounds
 
 
-def _find_route_start(text: str) -> int:
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
-        if re.search(r'\bKlacht\b', line):
-            return i
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if is_street_header(clean_street_name(stripped)):
-            return max(0, i - 1)
-    return -1
-
-
 def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> list:
     """
     Parse delivery route columns.
     newspaper_codes: set of valid codes (e.g. {'HD','TEL','VK'}).
     If None, falls back to a broad pattern match for 2-3 letter uppercase tokens.
     """
-    col_bounds = _detect_columns(text)
+    start = _find_route_start(text)
+    if start < 0:
+        return []
+
+    col_bounds = _detect_columns(text, start)
     n_cols = len(col_bounds)
 
     col_streets = [None] * n_cols
@@ -119,7 +139,6 @@ def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> 
                     newspaper = tok
                     break
             else:
-                # Fallback: treat any 2-3 letter uppercase token as a newspaper
                 if re.match(r'^[A-Z]{2,3}$', tok):
                     newspaper = tok
                     break
@@ -137,9 +156,6 @@ def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> 
         col_delivs[col_idx].append(entry)
 
     lines = text.splitlines()
-    start = _find_route_start(text)
-    if start < 0:
-        return []
 
     for raw_line in lines[start + 1:]:
         stripped = raw_line.strip()
