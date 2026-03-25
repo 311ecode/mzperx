@@ -1,15 +1,10 @@
 import re
-from collections import Counter, OrderedDict
+from collections import OrderedDict
 
 from ..helpers import fix_ocr, is_street_header, clean_street_name, NOISE_RE
 
 
 def _find_route_start(text: str) -> int:
-    """
-    Find the line index where delivery-route columns begin.
-    Primary: a line containing 'Klacht' (complaints header).
-    Fallback: the first street-header line in the body.
-    """
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if re.search(r'\bKlacht\b', line):
@@ -21,83 +16,97 @@ def _find_route_start(text: str) -> int:
     return -1
 
 
-def _detect_columns(text: str, start_line: int) -> list[tuple[int, int]]:
-    """
-    Auto-detect column x-positions by finding where street headers appear.
-    Only scans lines AFTER start_line to avoid false positives from
-    complaint/mutation addresses that also contain street names.
-    Only positions that appear 2+ times are treated as column starts.
-    Applies a left margin to non-first columns because delivery house
-    numbers may indent a few chars left of their header.
-    """
-    lines = text.splitlines()
-    positions = []
-    for line in lines[start_line + 1:]:
-        if 'EINDE WIJKLIJST' in line:
-            break
-        if NOISE_RE.match(line.strip()):
-            continue
-        for m in re.finditer(r'\S+', line):
-            rest = line[m.start():].split('  ')[0].strip()
-            cleaned = clean_street_name(rest)
-            if is_street_header(cleaned) and len(cleaned) > 4:
-                positions.append(m.start())
+def _street_headers_on_line(line: str) -> list[tuple[int, str]]:
+    """Return (position, cleaned_name) for distinct street headers on a line.
+    Filters sub-string duplicates like HOOFTSTRAAT inside P.C. HOOFTSTRAAT."""
+    raw = []
+    for m in re.finditer(r'\S+', line):
+        rest = line[m.start():].split('  ')[0].strip()
+        cleaned = clean_street_name(rest)
+        if is_street_header(cleaned) and len(cleaned) > 4:
+            raw.append((m.start(), cleaned))
 
-    if not positions:
-        return [(0, 9999)]
+    if len(raw) <= 1:
+        return raw
 
-    counts = Counter(positions)
-    frequent = sorted(p for p, c in counts.items() if c >= 2)
+    # Remove sub-string hits: if name A is a suffix of name B and they
+    # overlap in position, keep only the longer one.
+    filtered = []
+    for i, (pos_a, name_a) in enumerate(raw):
+        is_substring = False
+        for j, (pos_b, name_b) in enumerate(raw):
+            if i != j and name_a in name_b and abs(pos_a - pos_b) < len(name_b):
+                is_substring = True
+                break
+        if not is_substring:
+            filtered.append((pos_a, name_a))
 
-    if not frequent:
-        frequent = [0]
+    return filtered
 
-    # Cluster positions within 15 chars of each other
-    clusters = [[frequent[0]]]
-    for p in frequent[1:]:
-        if p - clusters[-1][-1] < 15:
-            clusters[-1].append(p)
-        else:
-            clusters.append([p])
 
-    starts = [min(c) for c in clusters]
-
-    # Delivery house numbers can sit up to ~10 chars left of the street header.
-    # Shift non-first column starts left by a margin, but don't overlap the
-    # midpoint with the previous column's header zone.
+def _bounds_from_positions(positions: list[int]) -> list[tuple[int, int]]:
     COL_MARGIN = 10
-    adjusted = [starts[0]]
-    for i in range(1, len(starts)):
-        shifted = max(starts[i] - COL_MARGIN, adjusted[-1] + 1)
+    adjusted = [max(positions[0] - COL_MARGIN, 0)]
+    for i in range(1, len(positions)):
+        shifted = max(positions[i] - COL_MARGIN, adjusted[-1] + 1)
         adjusted.append(shifted)
-
     bounds = []
     for i, s in enumerate(adjusted):
         end = adjusted[i + 1] - 1 if i + 1 < len(adjusted) else 9999
         bounds.append((s, end))
-
     return bounds
 
 
+def _positions_match_bounds(positions: list[int], bounds: list[tuple[int, int]]) -> bool:
+    """Check if detected header positions fall within existing column bounds,
+    each in a DIFFERENT column. If two headers land in the same column,
+    the layout has shifted and columns need redefining."""
+    used_cols = set()
+    for pos in positions:
+        matched_col = None
+        for col_idx, (lo, hi) in enumerate(bounds):
+            if lo <= pos <= hi:
+                matched_col = col_idx
+                break
+        if matched_col is None:
+            return False  # position outside any column
+        if matched_col in used_cols:
+            return False  # two headers in same column = layout shift
+        used_cols.add(matched_col)
+    return True
+
+
+def _detect_initial_columns(text: str, start_line: int) -> list[tuple[int, int]]:
+    lines = text.splitlines()
+    for line in lines[start_line + 1:]:
+        headers = _street_headers_on_line(line)
+        if len(headers) >= 2:
+            return _bounds_from_positions([h[0] for h in headers])
+    return [(0, 9999)]
+
+
 def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> list:
-    """
-    Parse delivery route columns.
-    newspaper_codes: set of valid codes (e.g. {'HD','TEL','VK'}).
-    If None, falls back to a broad pattern match for 2-3 letter uppercase tokens.
-    """
     start = _find_route_start(text)
     if start < 0:
         return []
 
-    col_bounds = _detect_columns(text, start)
+    col_bounds = _detect_initial_columns(text, start)
     n_cols = len(col_bounds)
 
     col_streets = [None] * n_cols
     col_cities  = ['HAARLEM'] * n_cols
     col_delivs  = [[] for _ in range(n_cols)]
     delivery_route: list = []
+    past_einde = False
+
+    def flush_all():
+        for i in range(len(col_streets)):
+            flush_col(i)
 
     def flush_col(i: int):
+        nonlocal col_streets, col_cities, col_delivs
+        if i >= len(col_streets):
+            return
         if col_streets[i] and col_delivs[i]:
             delivery_route.append({
                 'street':     col_streets[i],
@@ -107,6 +116,15 @@ def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> 
         col_streets[i] = None
         col_cities[i]  = 'HAARLEM'
         col_delivs[i]  = []
+
+    def reset_columns(new_bounds):
+        nonlocal col_bounds, n_cols, col_streets, col_cities, col_delivs
+        flush_all()
+        col_bounds = new_bounds
+        n_cols = len(new_bounds)
+        col_streets = [None] * n_cols
+        col_cities  = ['HAARLEM'] * n_cols
+        col_delivs  = [[] for _ in range(n_cols)]
 
     def process_slot(raw_slot: str, col_idx: int):
         slot = raw_slot.strip()
@@ -159,17 +177,38 @@ def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> 
 
     for raw_line in lines[start + 1:]:
         stripped = raw_line.strip()
-        if 'EINDE WIJKLIJST' in stripped:
-            break
+
         if NOISE_RE.match(stripped):
             continue
 
+        if 'EINDE WIJKLIJST' in stripped:
+            past_einde = True
+            continue
+
+        # After EINDE, only process lines that look like delivery data
+        # or street headers — skip everything else.
+        if past_einde:
+            has_street = bool(_street_headers_on_line(raw_line))
+            has_delivery = bool(re.match(r'\s*[0-9O]', raw_line))
+            if not has_street and not has_delivery:
+                continue
+
+        # Detect multi-header lines
+        headers = _street_headers_on_line(raw_line)
+        if len(headers) >= 2:
+            positions = [h[0] for h in headers]
+            # Only redefine columns if positions DON'T fit current bounds
+            # (indicates a page break with shifted layout)
+            if not _positions_match_bounds(positions, col_bounds):
+                new_bounds = _bounds_from_positions(positions)
+                reset_columns(new_bounds)
+
+        # Process with current column bounds
         for col_idx, (lo, hi) in enumerate(col_bounds):
             if lo < len(raw_line):
                 process_slot(raw_line[lo:min(hi, len(raw_line))], col_idx)
 
-    for i in range(n_cols):
-        flush_col(i)
+    flush_all()
 
     seen: dict = OrderedDict()
     for entry in delivery_route:
