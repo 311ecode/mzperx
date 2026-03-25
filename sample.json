@@ -75,6 +75,17 @@
       "total_circulation": 2
     },
     {
+      "code": "KW",
+      "edition": "KW",
+      "name": "Kidsweek",
+      "standard_bundles": 0,
+      "loose_copies": 1,
+      "subscriber_count": 1,
+      "lv_count": 0,
+      "leftover_papers": 0,
+      "total_circulation": 1
+    },
+    {
       "code": "TR",
       "edition": "TR",
       "name": "Trouw",
@@ -90,17 +101,6 @@
       "edition": "VK",
       "name": "Volkskrant",
       "standard_bundles": 0,
-      "loose_copies": 1,
-      "subscriber_count": 1,
-      "lv_count": 0,
-      "leftover_papers": 0,
-      "total_circulation": 1
-    },
-    {
-      "code": "HP",
-      "edition": "HP",
-      "name": "Het Parool",
-      "standard_bundles": 0,
       "loose_copies": 10,
       "subscriber_count": 10,
       "lv_count": 0,
@@ -108,9 +108,9 @@
       "total_circulation": 10
     },
     {
-      "code": "KW",
-      "edition": "KW",
-      "name": "Kwartaalblad",
+      "code": "HP",
+      "edition": "HP",
+      "name": "Het Parool",
       "standard_bundles": 0,
       "loose_copies": 2,
       "subscriber_count": 2,

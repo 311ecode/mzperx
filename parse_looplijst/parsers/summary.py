@@ -1,37 +1,39 @@
 import re
 
-from ..helpers import fix_ocr, KNOWN_NEWSPAPERS
+from ..helpers import fix_ocr
 
 
 def parse_newspaper_summary(text: str) -> list:
     """
-    Summary rows in pdftotext -layout sit at the END of long lines that also
-    contain the newspaper name, e.g.:
-        HDC   HD   Haarlems Dagblad   O   36   35   O   1   36
-    We search for the trailing 6-number pattern rather than requiring
-    the whole line to be numbers only.
+    Dynamically extract newspaper rows from the summary table.
+    Each row has: CODE  EDITION  NAME  <6 numbers>
+    No hard-coded newspaper list needed.
     """
     num_tail_re = re.compile(
         r'([O0]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s*$'
     )
-    number_rows = []
-    for line in text.splitlines():
-        if not any(code in line for code in KNOWN_NEWSPAPERS):
-            continue
-        m = num_tail_re.search(line)
-        if m:
-            number_rows.append([int(fix_ocr(m.group(i))) for i in range(1, 7)])
+    code_re = re.compile(
+        r'([A-Z]{2,4})\s{2,}([A-Z]{2,4})\s{2,}([A-Za-z][A-Za-z .]+?)(?:\s{3,}|\s+(?=[O0]))'
+    )
 
     newspapers = []
-    for i, nums in enumerate(number_rows):
-        if i >= len(KNOWN_NEWSPAPERS):
-            break
-        code = list(KNOWN_NEWSPAPERS.keys())[i]
-        edition, name = KNOWN_NEWSPAPERS[code]
+    for line in text.splitlines():
+        m_nums = num_tail_re.search(line)
+        if not m_nums:
+            continue
+
+        prefix = line[:m_nums.start()]
+        matches = list(code_re.finditer(prefix))
+        if not matches:
+            continue
+
+        cm = matches[-1]
+        nums = [int(fix_ocr(m_nums.group(i))) for i in range(1, 7)]
+
         newspapers.append({
-            'code':              code,
-            'edition':           edition,
-            'name':              name,
+            'code':              cm.group(1),
+            'edition':           cm.group(2),
+            'name':              cm.group(3).strip(),
             'standard_bundles':  nums[0],
             'loose_copies':      nums[1],
             'subscriber_count':  nums[2],

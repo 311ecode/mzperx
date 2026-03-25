@@ -1,15 +1,15 @@
 import re
 from collections import Counter, OrderedDict
 
-from ..helpers import fix_ocr, is_street_header, clean_street_name, NEWSPAPER_CODES, NOISE_RE
+from ..helpers import fix_ocr, is_street_header, clean_street_name, NOISE_RE
 
 
 def _detect_columns(text: str) -> list[tuple[int, int]]:
     """
     Auto-detect column x-positions by finding where street headers appear.
     Only positions that appear 2+ times are treated as column starts.
-    Applies a left margin to each column start (except col 0) because
-    delivery house numbers may indent a few chars left of their header.
+    Applies a left margin to non-first columns because delivery house
+    numbers may indent a few chars left of their header.
     """
     positions = []
     for line in text.splitlines():
@@ -28,7 +28,6 @@ def _detect_columns(text: str) -> list[tuple[int, int]]:
     if not frequent:
         frequent = [0]
 
-    # Cluster positions within 15 chars of each other
     clusters = [[frequent[0]]]
     for p in frequent[1:]:
         if p - clusters[-1][-1] < 15:
@@ -38,9 +37,6 @@ def _detect_columns(text: str) -> list[tuple[int, int]]:
 
     starts = [min(c) for c in clusters]
 
-    # Delivery house numbers can sit up to ~10 chars left of the street header.
-    # Shift non-first column starts left by a margin, but don't overlap the
-    # midpoint with the previous column's header zone.
     COL_MARGIN = 10
     adjusted = [starts[0]]
     for i in range(1, len(starts)):
@@ -72,7 +68,12 @@ def _find_route_start(text: str) -> int:
     return -1
 
 
-def parse_delivery_route(text: str) -> list:
+def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> list:
+    """
+    Parse delivery route columns.
+    newspaper_codes: set of valid codes (e.g. {'HD','TEL','VK'}).
+    If None, falls back to a broad pattern match for 2-3 letter uppercase tokens.
+    """
     col_bounds = _detect_columns(text)
     n_cols = len(col_bounds)
 
@@ -118,9 +119,14 @@ def parse_delivery_route(text: str) -> list:
         newspaper         = None
 
         for tok in m.group(2).split():
-            if tok in NEWSPAPER_CODES:
-                newspaper = tok
-                break
+            if newspaper_codes:
+                if tok in newspaper_codes:
+                    newspaper = tok
+                    break
+            else:
+                if re.match(r'^[A-Z]{2,3}$', tok):
+                    newspaper = tok
+                    break
             annotation_tokens.append(tok)
 
         if not newspaper:

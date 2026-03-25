@@ -31,11 +31,17 @@ def parse_pdf(pdf_path: Path) -> dict | None:
         print(f"Error reading PDF: {e}", file=sys.stderr)
         return None
 
+    summary = parse_newspaper_summary(text)
+
+    # Derive newspaper codes from summary for the route parser
+    newspaper_codes = {ns['code'] for ns in summary}
+    newspaper_codes.update(ns['edition'] for ns in summary)
+
     return {
         'metadata':          extract_metadata(text),
-        'newspaper_summary': parse_newspaper_summary(text),
+        'newspaper_summary': summary,
         'complaints':        parse_complaints(text),
-        'delivery_route':    parse_delivery_route(text),
+        'delivery_route':    parse_delivery_route(text, newspaper_codes),
     }
 
 
