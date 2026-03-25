@@ -12,6 +12,7 @@ def parse_newspaper_summary(text: str) -> list:
     num_tail_re = re.compile(
         r'([O0]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s*$'
     )
+    # CODE(2-4 caps)  EDITION(2-4 caps)  NAME(mixed case words)
     code_re = re.compile(
         r'([A-Z]{2,4})\s{2,}([A-Z]{2,4})\s{2,}([A-Za-z][A-Za-z .]+?)(?:\s{3,}|\s+(?=[O0]))'
     )
@@ -27,6 +28,7 @@ def parse_newspaper_summary(text: str) -> list:
         if not matches:
             continue
 
+        # Take the last match (handles lines with WIJKLIJST junk before the code)
         cm = matches[-1]
         nums = [int(fix_ocr(m_nums.group(i))) for i in range(1, 7)]
 

@@ -1,8 +1,5 @@
 from .fix_ocr import fix_ocr
-
-
 def format_date(date_str: str) -> str:
-    """Normalise to YYYY-MM-DD. Handles DD-MM-YYYY input and O→0 artefacts."""
     cleaned = fix_ocr(date_str)
     parts = cleaned.split('-')
     if len(parts) != 3:

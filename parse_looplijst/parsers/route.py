@@ -52,11 +52,6 @@ def _detect_columns(text: str) -> list[tuple[int, int]]:
 
 
 def _find_route_start(text: str) -> int:
-    """
-    Find the line index where delivery-route columns begin.
-    Primary: a line containing 'Klacht' (complaints header).
-    Fallback: the first street-header line in the body.
-    """
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if re.search(r'\bKlacht\b', line):
@@ -124,6 +119,7 @@ def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> 
                     newspaper = tok
                     break
             else:
+                # Fallback: treat any 2-3 letter uppercase token as a newspaper
                 if re.match(r'^[A-Z]{2,3}$', tok):
                     newspaper = tok
                     break

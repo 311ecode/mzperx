@@ -35,6 +35,7 @@ def parse_pdf(pdf_path: Path) -> dict | None:
 
     # Derive newspaper codes from summary for the route parser
     newspaper_codes = {ns['code'] for ns in summary}
+    # Also add edition codes (e.g. HDC→HD) since delivery lines use edition codes
     newspaper_codes.update(ns['edition'] for ns in summary)
 
     return {
