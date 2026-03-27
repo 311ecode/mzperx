@@ -12,9 +12,9 @@ def parse_newspaper_summary(text: str) -> list:
     num_tail_re = re.compile(
         r'([O0]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s+([O0-9]+)\s*$'
     )
-    # CODE(2-4 caps)  EDITION(2-4 caps)  NAME(mixed case words)
+    # CODE(2-4 caps)  EDITION(caps, may contain underscore/digits e.g. HD_MA, NRC_MA)  NAME(mixed case words)
     code_re = re.compile(
-        r'([A-Z]{2,4})\s{2,}([A-Z]{2,4})\s{2,}([A-Za-z][A-Za-z .]+?)(?:\s{3,}|\s+(?=[O0]))'
+        r'([A-Z]{2,4})\s{2,}([A-Z][A-Z0-9_]{1,8})\s{2,}([A-Za-z][A-Za-z .]+?)(?:\s{3,}|\s+(?=[O0]))'
     )
 
     newspapers = []

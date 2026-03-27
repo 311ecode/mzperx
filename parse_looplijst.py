@@ -33,10 +33,19 @@ def parse_pdf(pdf_path: Path) -> dict | None:
 
     summary = parse_newspaper_summary(text)
 
-    # Derive newspaper codes from summary for the route parser
-    newspaper_codes = {ns['code'] for ns in summary}
-    # Also add edition codes (e.g. HDC→HD) since delivery lines use edition codes
-    newspaper_codes.update(ns['edition'] for ns in summary)
+    # Derive newspaper codes from summary for the route parser.
+    # Delivery lines use short codes (HD, TEL, VK) while the summary
+    # may have longer codes (HDC, HD_MA, MANTEL). We generate all variants:
+    newspaper_codes = set()
+    for ns in summary:
+        newspaper_codes.add(ns['code'])
+        newspaper_codes.add(ns['edition'])
+        # Strip trailing 'C' from code (HDC -> HD)
+        if ns['code'].endswith('C') and len(ns['code']) > 2:
+            newspaper_codes.add(ns['code'][:-1])
+        # Strip _suffix from edition (HD_MA -> HD, NRC_MA -> NRC)
+        if '_' in ns['edition']:
+            newspaper_codes.add(ns['edition'].split('_')[0])
 
     return {
         'metadata':          extract_metadata(text),
