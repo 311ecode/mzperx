@@ -3,8 +3,6 @@
 let complaintMarkers = [];
 let complaintLookup  = new Map();
 
-// "P.C. Hooftstraat 2, HAARLEM" -> "PC HOOFTSTRAAT|2"
-// "Vinkenstraat 13, HAARLEM"    -> "VINKENSTRAAT|13"
 function normalizeStreetName(raw) {
     return raw
         .toUpperCase()
@@ -14,15 +12,10 @@ function normalizeStreetName(raw) {
 }
 
 function parseComplaintAddress(address) {
-    // Split off city: "Vinkenstraat 13, HAARLEM" -> "Vinkenstraat 13"
     const withoutCity = address.split(',')[0].trim();
     const city        = (address.split(',')[1] || 'HAARLEM').trim().toUpperCase();
-
-    // Split trailing house number from street name
-    // Handles: "Vinkenstraat 13", "P.C. Hooftstraat 2", "Vergierdeweg 18"
-    const m = withoutCity.match(/^(.+?)\s+(\d+\S*)$/);
+    const m           = withoutCity.match(/^(.+?)\s+(\d+\S*)$/);
     if (!m) return null;
-
     return {
         street:      normalizeStreetName(m[1]),
         houseNumber: m[2].trim(),
@@ -37,7 +30,6 @@ function buildComplaintLookup() {
     routeData.complaints.forEach((c, i) => {
         const parsed = parseComplaintAddress(c.address);
         if (!parsed) return;
-
         const key = `${parsed.street}|${parsed.houseNumber}`;
         if (!complaintLookup.has(key)) complaintLookup.set(key, []);
         complaintLookup.get(key).push(i);
@@ -46,7 +38,6 @@ function buildComplaintLookup() {
     console.log('Complaint lookup built:', [...complaintLookup.keys()]);
 }
 
-// Called from tracker-ui.js per delivery row
 function getDeliveryComplaintKey(street, houseNumber) {
     return `${normalizeStreetName(street)}|${houseNumber.toString().trim()}`;
 }
@@ -56,6 +47,24 @@ function getComplaintsByDeliveryKey(key) {
     return indices.map(i => routeData.complaints[i]);
 }
 
+function getDeliveryIdsByComplaintKey(key) {
+    if (!routeData) return [];
+    const ids = [];
+    routeData.delivery_route.forEach((street, streetIndex) => {
+        street.deliveries.forEach((delivery, deliveryIndex) => {
+            const dKey = getDeliveryComplaintKey(street.street, delivery.house_number);
+            if (dKey === key) ids.push(`${streetIndex}-${deliveryIndex}`);
+        });
+    });
+    return ids;
+}
+
+function isComplaintDelivered(complaintKey) {
+    const ids = getDeliveryIdsByComplaintKey(complaintKey);
+    if (ids.length === 0) return false;
+    return ids.every(id => completedDeliveries.has(id));
+}
+
 function getComplaintBadgeStyle(type) {
     if (type === 'NIET KRANT')       return 'background:#e74c3c;color:white;';
     if (type === 'NIET BIJLAGE')     return 'background:#e67e22;color:white;';
@@ -63,11 +72,13 @@ function getComplaintBadgeStyle(type) {
     return 'background:#7f8c8d;color:white;';
 }
 
-function getComplaintMarkerIcon() {
+function getComplaintMarkerIcon(delivered) {
+    const bg   = delivered ? '#27ae60' : '#f39c12';
+    const icon = delivered ? '✓' : '!';
     return L.divIcon({
         className: 'custom-marker',
         html: `<div style="
-            background-color:#f39c12;
+            background-color:${bg};
             width:30px;height:30px;
             border-radius:50% 50% 50% 0;
             border:3px solid white;
@@ -77,7 +88,7 @@ function getComplaintMarkerIcon() {
             position:absolute;top:50%;left:50%;
             transform:translate(-50%,-50%) rotate(45deg);
             color:white;font-weight:700;font-size:16px;
-        ">!</div></div>`,
+        ">${icon}</div></div>`,
         iconSize:    [30, 30],
         iconAnchor:  [15, 30],
     });
@@ -86,7 +97,7 @@ function getComplaintMarkerIcon() {
 async function createComplaintMarkers() {
     if (!routeData || !routeData.complaints) return;
 
-    complaintMarkers.forEach(m => map.removeLayer(m));
+    complaintMarkers.forEach(({ marker }) => map.removeLayer(marker));
     complaintMarkers = [];
 
     for (const c of routeData.complaints) {
@@ -96,11 +107,15 @@ async function createComplaintMarkers() {
         const coords = await geocodeAddress(parsed.street, parsed.houseNumber, parsed.city);
         if (!coords) continue;
 
+        const cKey      = `${parsed.street}|${parsed.houseNumber}`;
+        const delivered = isComplaintDelivered(cKey);
+
         const marker = L.marker([coords.lat, coords.lon], {
-            icon:         getComplaintMarkerIcon(),
+            icon:         getComplaintMarkerIcon(delivered),
             zIndexOffset: 500,
         }).addTo(map);
 
+        // Popup only — never toggles delivery state
         marker.bindPopup(`
             <div class="popup-house">⚠️ ${parsed.street} ${parsed.houseNumber}</div>
             <div style="margin-top:8px;font-size:12px;line-height:1.7;">
@@ -112,8 +127,20 @@ async function createComplaintMarkers() {
             </div>
         `);
 
-        complaintMarkers.push(marker);
+        marker.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            marker.openPopup();
+        });
+
+        complaintMarkers.push({ marker, cKey, complaint: c, parsed });
     }
+}
+
+function updateComplaintMarkers() {
+    complaintMarkers.forEach(({ marker, cKey }) => {
+        const delivered = isComplaintDelivered(cKey);
+        marker.setIcon(getComplaintMarkerIcon(delivered));
+    });
 }
 
 function renderComplaints() {
