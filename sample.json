@@ -1,11 +1,11 @@
 {
   "metadata": {
-    "distribution_date": "2026-04-15",
+    "distribution_date": "2026-04-16",
     "document_type": "Looplijst",
     "element_type": "2",
     "element_number": "10015851",
     "route_code": "2002 042                                                                                                                  10015851",
-    "generated_on": "14-04-2026 12:17"
+    "generated_on": "15-04-2026 12:22"
   },
   "newspaper_summary": [
     {
@@ -35,11 +35,11 @@
       "edition": "NRC",
       "name": "NRC",
       "standard_bundles": 0,
-      "loose_copies": 2,
-      "subscriber_count": 2,
+      "loose_copies": 4,
+      "subscriber_count": 4,
       "lv_count": 0,
       "leftover_papers": 0,
-      "total_circulation": 2
+      "total_circulation": 4
     },
     {
       "code": "AD",
@@ -108,16 +108,7 @@
       "total_circulation": 2
     }
   ],
-  "complaints": [
-    {
-      "type": "NIET KRANT",
-      "date": "2026-04-14",
-      "product": "HD",
-      "subscription_type": "MA-ZA",
-      "address": "Nachtegaalstraat 95, HAARLEM",
-      "name": ""
-    }
-  ],
+  "complaints": [],
   "delivery_route": [
     {
       "street": "SINT-BAVOSTRAAT",
@@ -194,16 +185,12 @@
       ]
     },
     {
-      "street": "MEERKOETSTRAAT",
+      "street": "LIJSTERSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
         {
-          "house_number": "8",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "10",
-          "newspaper": "TEL"
+          "house_number": "5",
+          "newspaper": "NRC"
         }
       ]
     },
@@ -332,6 +319,20 @@
       ]
     },
     {
+      "street": "MEERKOETSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "8",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "10",
+          "newspaper": "TEL"
+        }
+      ]
+    },
+    {
       "street": "NACHTEGAALSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
@@ -349,6 +350,36 @@
         },
         {
           "house_number": "95",
+          "newspaper": "HD"
+        }
+      ]
+    },
+    {
+      "street": "VINKENSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "13",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "18",
+          "newspaper": "TEL"
+        },
+        {
+          "house_number": "52",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "54",
+          "newspaper": "ND"
+        },
+        {
+          "house_number": "61",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "64",
           "newspaper": "HD"
         }
       ]
@@ -414,6 +445,10 @@
           "newspaper": "HD"
         },
         {
+          "house_number": "36",
+          "newspaper": "NRC"
+        },
+        {
           "house_number": "42",
           "newspaper": "VK"
         },
@@ -424,36 +459,6 @@
         {
           "house_number": "50",
           "newspaper": "VK"
-        }
-      ]
-    },
-    {
-      "street": "VINKENSTRAAT",
-      "city": "HAARLEM",
-      "deliveries": [
-        {
-          "house_number": "13",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "18",
-          "newspaper": "TEL"
-        },
-        {
-          "house_number": "52",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "54",
-          "newspaper": "ND"
-        },
-        {
-          "house_number": "61",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "64",
-          "newspaper": "HD"
         }
       ]
     }
