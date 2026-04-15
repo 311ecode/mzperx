@@ -1,11 +1,11 @@
 {
   "metadata": {
-    "distribution_date": "2026-04-14",
+    "distribution_date": "2026-04-15",
     "document_type": "Looplijst",
     "element_type": "2",
     "element_number": "10015851",
     "route_code": "2002 042                                                                                                                  10015851",
-    "generated_on": "13-04-2026 12:17"
+    "generated_on": "14-04-2026 12:17"
   },
   "newspaper_summary": [
     {
@@ -111,53 +111,35 @@
   "complaints": [
     {
       "type": "NIET KRANT",
-      "date": "2026-04-11",
+      "date": "2026-04-14",
       "product": "HD",
       "subscription_type": "MA-ZA",
-      "address": "Vinkenstraat 52, HAARLEM",
-      "name": ""
-    },
-    {
-      "type": "NIET KRANT",
-      "date": "2026-04-11",
-      "product": "TEL",
-      "subscription_type": "M---VZ-",
-      "address": "Eksterlaan 264, HAARLEM",
-      "name": ""
-    },
-    {
-      "type": "NIET KRANT",
-      "date": "2026-04-13",
-      "product": "TEL",
-      "subscription_type": "M---VZ-",
-      "address": "Eksterlaan 264, HAARLEM",
-      "name": ""
-    },
-    {
-      "type": "NIET BIJLAGE",
-      "date": "2026-04-11",
-      "product": "NRC",
-      "subscription_type": "ZA",
-      "address": "Gruttostraat 9, HAARLEM",
-      "name": ""
-    },
-    {
-      "type": "NIET BIJLAGE",
-      "date": "2026-04-11",
-      "product": "NRC",
-      "subscription_type": "ZA",
-      "address": "Vinkenstraat 56, HAARLEM",
+      "address": "Nachtegaalstraat 95, HAARLEM",
       "name": ""
     }
   ],
   "delivery_route": [
     {
-      "street": "OOIEVAARSTRAAT",
+      "street": "SINT-BAVOSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
         {
-          "house_number": "32",
+          "house_number": "15",
+          "newspaper": "VK"
+        }
+      ]
+    },
+    {
+      "street": "P.C. HOOFTSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "2",
           "newspaper": "HD"
+        },
+        {
+          "house_number": "9",
+          "newspaper": "NRC"
         }
       ]
     },
@@ -184,50 +166,6 @@
       ]
     },
     {
-      "street": "P.C. HOOFTSTRAAT",
-      "city": "HAARLEM",
-      "deliveries": [
-        {
-          "house_number": "2",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "9",
-          "newspaper": "NRC"
-        }
-      ]
-    },
-    {
-      "street": "REIJER ANSLOSTRAAT",
-      "city": "HAARLEM",
-      "deliveries": [
-        {
-          "house_number": "10",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "12",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "26",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "42",
-          "newspaper": "VK"
-        },
-        {
-          "house_number": "46",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "50",
-          "newspaper": "VK"
-        }
-      ]
-    },
-    {
       "street": "GRUTTOSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
@@ -242,16 +180,6 @@
         {
           "house_number": "21",
           "newspaper": "HD"
-        }
-      ]
-    },
-    {
-      "street": "SINT-BAVOSTRAAT",
-      "city": "HAARLEM",
-      "deliveries": [
-        {
-          "house_number": "15",
-          "newspaper": "VK"
         }
       ]
     },
@@ -280,24 +208,64 @@
       ]
     },
     {
-      "street": "NACHTEGAALSTRAAT",
+      "street": "REIGERSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
         {
-          "house_number": "28",
-          "newspaper": "TEL"
-        },
-        {
-          "house_number": "73",
+          "house_number": "15",
           "newspaper": "HD"
         },
         {
+          "house_number": "16",
+          "newspaper": "VK"
+        },
+        {
+          "house_number": "18",
+          "newspaper": "VK"
+        },
+        {
+          "house_number": "48",
+          "newspaper": "NRC"
+        },
+        {
+          "house_number": "69",
+          "newspaper": "HP"
+        },
+        {
           "house_number": "78",
-          "newspaper": "AD"
+          "newspaper": "HFD"
+        },
+        {
+          "house_number": "93",
+          "newspaper": "HD"
         },
         {
           "house_number": "95",
           "newspaper": "HD"
+        },
+        {
+          "house_number": "112",
+          "newspaper": "TR"
+        },
+        {
+          "house_number": "117",
+          "newspaper": "AD"
+        },
+        {
+          "house_number": "122",
+          "newspaper": "VK"
+        },
+        {
+          "house_number": "124",
+          "newspaper": "VK"
+        },
+        {
+          "house_number": "129",
+          "newspaper": "TEL"
+        },
+        {
+          "house_number": "134",
+          "newspaper": "TEL"
         }
       ]
     },
@@ -364,31 +332,33 @@
       ]
     },
     {
-      "street": "VINKENSTRAAT",
+      "street": "NACHTEGAALSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
         {
-          "house_number": "13",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "18",
+          "house_number": "28",
           "newspaper": "TEL"
         },
         {
-          "house_number": "52",
+          "house_number": "73",
           "newspaper": "HD"
         },
         {
-          "house_number": "54",
-          "newspaper": "ND"
+          "house_number": "78",
+          "newspaper": "AD"
         },
         {
-          "house_number": "61",
+          "house_number": "95",
           "newspaper": "HD"
-        },
+        }
+      ]
+    },
+    {
+      "street": "OOIEVAARSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
         {
-          "house_number": "64",
+          "house_number": "32",
           "newspaper": "HD"
         }
       ]
@@ -428,64 +398,62 @@
       ]
     },
     {
-      "street": "REIGERSTRAAT",
+      "street": "REIJER ANSLOSTRAAT",
       "city": "HAARLEM",
       "deliveries": [
         {
-          "house_number": "15",
+          "house_number": "10",
           "newspaper": "HD"
         },
         {
-          "house_number": "16",
+          "house_number": "12",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "26",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "42",
           "newspaper": "VK"
+        },
+        {
+          "house_number": "46",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "50",
+          "newspaper": "VK"
+        }
+      ]
+    },
+    {
+      "street": "VINKENSTRAAT",
+      "city": "HAARLEM",
+      "deliveries": [
+        {
+          "house_number": "13",
+          "newspaper": "HD"
         },
         {
           "house_number": "18",
-          "newspaper": "VK"
-        },
-        {
-          "house_number": "48",
-          "newspaper": "NRC"
-        },
-        {
-          "house_number": "69",
-          "newspaper": "HP"
-        },
-        {
-          "house_number": "78",
-          "newspaper": "HFD"
-        },
-        {
-          "house_number": "93",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "95",
-          "newspaper": "HD"
-        },
-        {
-          "house_number": "112",
-          "newspaper": "TR"
-        },
-        {
-          "house_number": "117",
-          "newspaper": "AD"
-        },
-        {
-          "house_number": "122",
-          "newspaper": "VK"
-        },
-        {
-          "house_number": "124",
-          "newspaper": "VK"
-        },
-        {
-          "house_number": "129",
           "newspaper": "TEL"
         },
         {
-          "house_number": "134",
-          "newspaper": "TEL"
+          "house_number": "52",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "54",
+          "newspaper": "ND"
+        },
+        {
+          "house_number": "61",
+          "newspaper": "HD"
+        },
+        {
+          "house_number": "64",
+          "newspaper": "HD"
         }
       ]
     }
