@@ -3,6 +3,7 @@
 # This script temporarily modifies the .github-sync.yaml file using yq
 # to make a project public, then restores from backup.
 #
+# Compatible with yq by kislyuk (jq wrapper).
 # All functions and variables are namespaced with 'msv_' to prevent
 # polluting the global shell environment.
 
@@ -41,7 +42,8 @@ msv_print_error() {
 
 # Main function to manage the site visibility workflow.
 manage_site_visibility() {
-    cd $PRIVATE_DIR
+    cd "$PRIVATE_DIR" || return 1
+
     # --- Pre-run Checks ---
     if ! command -v yq &> /dev/null; then
         msv_print_error "yq is not installed. Please install yq to continue."
@@ -56,8 +58,6 @@ manage_site_visibility() {
 
     # --- Local Variables ---
     local backup_file="${MSV_CONFIG_FILE}.bak"
-    
-    # Use $PRIVATE_DIR if set, otherwise default to $HOME/.private
     local private_dir_val="${PRIVATE_DIR:-$HOME/.private}"
     local json_output_path="$private_dir_val/.github-sync-output.json"
 
@@ -71,29 +71,20 @@ manage_site_visibility() {
         return 1
     fi
 
-    # 2. Modify configuration to be PUBLIC using yq (modern syntax for yq v4+)
+    # 2. Modify configuration to be PUBLIC using yq (kislyuk/jq-wrapper syntax)
     msv_print_info "Applying temporary (public) configuration using yq..."
     msv_print_info "Setting json_output to: $json_output_path"
 
-    # Modern yq uses environment variables with env() function
-    # First, set the project to public and enable GitHub Pages
-    MSV_PROJ_PATH="$MSV_PROJECT_PATH" yq eval -i \
-        '(.projects[] | select(.path == env(MSV_PROJ_PATH))) |= (.private = false | .githubPages = true)' \
+    # Set project to public and enable githubPages, then set json_output — all in one pass
+    yq -Y -i \
+        --arg proj_path "$MSV_PROJECT_PATH" \
+        --arg json_path "$json_output_path" \
+        '(.projects[] | select(.path == $proj_path)) |= (.private = false | .githubPages = true)
+         | .json_output = $json_path' \
         "$MSV_CONFIG_FILE"
 
     if [[ $? -ne 0 ]]; then
         msv_print_error "yq command failed (project modification). Restoring from backup."
-        cp "$backup_file" "$MSV_CONFIG_FILE"
-        return 1
-    fi
-
-    # Second, set the json_output path
-    MSV_JSON_PATH="$json_output_path" yq eval -i \
-        '.json_output = env(MSV_JSON_PATH)' \
-        "$MSV_CONFIG_FILE"
-
-    if [[ $? -ne 0 ]]; then
-        msv_print_error "yq command failed (json_output modification). Restoring from backup."
         cp "$backup_file" "$MSV_CONFIG_FILE"
         return 1
     fi
@@ -107,7 +98,7 @@ manage_site_visibility() {
     msv_print_info "Site is now public."
 
     # 4. Ask for confirmation
-    echo "" # Add a newline for clarity
+    echo ""
     local answer
     read -p "Can I continue to close the site? (y/n): " answer
 
@@ -139,5 +130,4 @@ manage_site_visibility() {
 }
 
 # --- Script Execution ---
-# Call the main function, passing all script arguments (if any)
 # manage_site_visibility "$@"
