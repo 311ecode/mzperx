@@ -16,7 +16,7 @@ def _find_route_start(text: str) -> int:
     return -1
 
 
-def _street_headers_on_line(line: str) -> list[tuple[int, str]]:
+def _street_headers_on_line(line: str) -> list:
     """Return (position, cleaned_name) for distinct street headers on a line.
     Filters sub-string duplicates like HOOFTSTRAAT inside P.C. HOOFTSTRAAT."""
     raw = []
@@ -29,8 +29,6 @@ def _street_headers_on_line(line: str) -> list[tuple[int, str]]:
     if len(raw) <= 1:
         return raw
 
-    # Remove sub-string hits: if name A is a suffix of name B and they
-    # overlap in position, keep only the longer one.
     filtered = []
     for i, (pos_a, name_a) in enumerate(raw):
         is_substring = False
@@ -44,7 +42,7 @@ def _street_headers_on_line(line: str) -> list[tuple[int, str]]:
     return filtered
 
 
-def _bounds_from_positions(positions: list[int]) -> list[tuple[int, int]]:
+def _bounds_from_positions(positions: list) -> list:
     COL_MARGIN = 10
     adjusted = [max(positions[0] - COL_MARGIN, 0)]
     for i in range(1, len(positions)):
@@ -57,7 +55,7 @@ def _bounds_from_positions(positions: list[int]) -> list[tuple[int, int]]:
     return bounds
 
 
-def _positions_match_bounds(positions: list[int], bounds: list[tuple[int, int]]) -> bool:
+def _positions_match_bounds(positions: list, bounds: list) -> bool:
     """Check if detected header positions fall within existing column bounds,
     each in a DIFFERENT column. If two headers land in the same column,
     the layout has shifted and columns need redefining."""
@@ -69,14 +67,14 @@ def _positions_match_bounds(positions: list[int], bounds: list[tuple[int, int]])
                 matched_col = col_idx
                 break
         if matched_col is None:
-            return False  # position outside any column
+            return False
         if matched_col in used_cols:
-            return False  # two headers in same column = layout shift
+            return False
         used_cols.add(matched_col)
     return True
 
 
-def _detect_initial_columns(text: str, start_line: int) -> list[tuple[int, int]]:
+def _detect_initial_columns(text: str, start_line: int) -> list:
     lines = text.splitlines()
     for line in lines[start_line + 1:]:
         headers = _street_headers_on_line(line)
@@ -85,7 +83,7 @@ def _detect_initial_columns(text: str, start_line: int) -> list[tuple[int, int]]
     return [(0, 9999)]
 
 
-def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> list:
+def parse_delivery_route(text: str, newspaper_codes=None) -> list:
     start = _find_route_start(text)
     if start < 0:
         return []
@@ -96,14 +94,14 @@ def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> 
     col_streets = [None] * n_cols
     col_cities  = ['HAARLEM'] * n_cols
     col_delivs  = [[] for _ in range(n_cols)]
-    delivery_route: list = []
+    delivery_route = []
     past_einde = False
 
     def flush_all():
         for i in range(len(col_streets)):
             flush_col(i)
 
-    def flush_col(i: int):
+    def flush_col(i):
         nonlocal col_streets, col_cities, col_delivs
         if i >= len(col_streets):
             return
@@ -126,10 +124,22 @@ def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> 
         col_cities  = ['HAARLEM'] * n_cols
         col_delivs  = [[] for _ in range(n_cols)]
 
-    def process_slot(raw_slot: str, col_idx: int):
+    def process_slot(raw_slot, col_idx):
         slot = raw_slot.strip()
         if not slot or NOISE_RE.match(slot):
             return
+
+        # If the slot starts with a lowercase-letter token, it's almost certainly
+        # overflow from the previous column's customer-name field (e.g. "dt" from
+        # "Coerdt", "enhagen" from "Cobbenhagen"). Skip past such leading tokens
+        # and retry parsing from the next whitespace-separated token.
+        while slot and slot[0].islower():
+            parts = slot.split(None, 1)
+            if len(parts) < 2:
+                return
+            slot = parts[1]
+            if NOISE_RE.match(slot):
+                return
 
         if not re.match(r'^[0-9]|^O[0-9]', slot):
             cleaned = clean_street_name(slot)
@@ -165,7 +175,7 @@ def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> 
         if not newspaper:
             return
 
-        entry: dict = {'house_number': house_number, 'newspaper': newspaper}
+        entry = {'house_number': house_number, 'newspaper': newspaper}
         if annotation_tokens:
             ann = ' '.join(annotation_tokens)
             if re.match(r'^[A-Z0-9 \-]+$', ann):
@@ -185,32 +195,26 @@ def parse_delivery_route(text: str, newspaper_codes: set[str] | None = None) -> 
             past_einde = True
             continue
 
-        # After EINDE, only process lines that look like delivery data
-        # or street headers — skip everything else.
         if past_einde:
             has_street = bool(_street_headers_on_line(raw_line))
             has_delivery = bool(re.match(r'\s*[0-9O]', raw_line))
             if not has_street and not has_delivery:
                 continue
 
-        # Detect multi-header lines
         headers = _street_headers_on_line(raw_line)
         if len(headers) >= 2:
             positions = [h[0] for h in headers]
-            # Only redefine columns if positions DON'T fit current bounds
-            # (indicates a page break with shifted layout)
             if not _positions_match_bounds(positions, col_bounds):
                 new_bounds = _bounds_from_positions(positions)
                 reset_columns(new_bounds)
 
-        # Process with current column bounds
         for col_idx, (lo, hi) in enumerate(col_bounds):
             if lo < len(raw_line):
                 process_slot(raw_line[lo:min(hi, len(raw_line))], col_idx)
 
     flush_all()
 
-    seen: dict = OrderedDict()
+    seen = OrderedDict()
     for entry in delivery_route:
         key = (entry['street'], entry['city'])
         if key in seen:
