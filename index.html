@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="styles-map.css" />
     <link rel="stylesheet" href="styles-sidebar.css" />
     <link rel="stylesheet" href="styles-controls.css" />
+    <link rel="stylesheet" href="styles-counts.css" />
     <link rel="stylesheet" href="styles-responsive.css" />
 </head>
 <body>
@@ -42,6 +43,7 @@
     <div class="controls desktop-controls">
         <button class="btn btn-primary" onclick="centerMap()">🎯 Centreer Kaart</button>
         <button class="btn btn-success" onclick="refreshRouteData()">🔄 Ververs Alles</button>
+        <button class="btn btn-primary" onclick="openCountsPanel()">📊 Tellingen</button>
         <button class="btn btn-danger" onclick="resetProgress()">🔄 Reset</button>
     </div>
 
@@ -63,6 +65,10 @@
                 <span class="menu-icon">🎯</span>
                 <span class="menu-text">Centreer Kaart</span>
             </button>
+            <button class="menu-item btn-primary" onclick="closeMenu(); openCountsPanel();">
+                <span class="menu-icon">📊</span>
+                <span class="menu-text">Tellingen</span>
+            </button>
             <button class="menu-item btn-success" onclick="refreshRouteData(); closeMenu();">
                 <span class="menu-icon">🔄</span>
                 <span class="menu-text">Ververs Alles</span>
@@ -77,6 +83,16 @@
     <!-- Menu Overlay -->
     <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
+    <!-- Counts Panel -->
+    <div class="counts-overlay" id="countsOverlay" onclick="closeCountsPanel()"></div>
+    <div class="counts-panel" id="countsPanel" role="dialog" aria-labelledby="countsPanelTitle">
+        <div class="counts-panel-header">
+            <h3 id="countsPanelTitle">📊 Tellingen (bezorgd / verwacht)</h3>
+            <button class="counts-close-btn" onclick="closeCountsPanel()" aria-label="Sluit tellingen">×</button>
+        </div>
+        <div class="counts-panel-body" id="countsPanelBody"></div>
+    </div>
+
     <!-- Leaflet Library -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -90,6 +106,7 @@
     <script src="tracker-map-markers.js"></script>
     <script src="tracker-delivery.js"></script>
     <script src="tracker-complaints.js"></script>
+    <script src="tracker-counts.js"></script>
     <script src="tracker-ui.js"></script>
     <script src="tracker-controls.js"></script>
     <script src="tracker.js"></script>
