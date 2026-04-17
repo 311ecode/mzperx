@@ -11,23 +11,37 @@ ZORGDK_GREEN='\033[0;32m'
 ZORGDK_YELLOW='\033[1;33m'
 ZORGDK_NC='\033[0m' # No Color
 
-# Function to print colored messages
-zorgdk_print_info() {
-    echo -e "${ZORGDK_GREEN}[INFO]${ZORGDK_NC} $1"
+zorgdk_print_info()  { echo -e "${ZORGDK_GREEN}[INFO]${ZORGDK_NC} $1" >&2; }
+zorgdk_print_warn()  { echo -e "${ZORGDK_YELLOW}[WARN]${ZORGDK_NC} $1" >&2; }
+zorgdk_print_error() { echo -e "${ZORGDK_RED}[ERROR]${ZORGDK_NC} $1" >&2; }
+
+# --- Python resolution ---
+
+# Return the first python3/python binary that can import pdfplumber, or "".
+zorgdk_find_python() {
+    for candidate in python3 python; do
+        if command -v "$candidate" &>/dev/null; then
+            if "$candidate" -c "import pdfplumber" 2>/dev/null; then
+                echo "$candidate"
+                return 0
+            fi
+        fi
+    done
+    echo ""
 }
 
-zorgdk_print_warn() {
-    echo -e "${ZORGDK_YELLOW}[WARN]${ZORGDK_NC} $1"
+# Install pdfplumber into the system/user Python (no conda needed).
+zorgdk_pip_install() {
+    local py="$1"
+    zorgdk_print_info "Installing pdfplumber via pip..."
+    "$py" -m pip install --user pdfplumber --break-system-packages 2>/dev/null \
+        || "$py" -m pip install --user pdfplumber
 }
 
-zorgdk_print_error() {
-    echo -e "${ZORGDK_RED}[ERROR]${ZORGDK_NC} $1"
-}
+# --- Conda helpers (kept for environments that do have it) ---
 
-# Function to get conda base path
 zorgdk_get_conda_base() {
-    # Try to find conda installation
-    if command -v conda &> /dev/null; then
+    if command -v conda &>/dev/null; then
         conda info --base 2>/dev/null
     elif [ -n "$CONDA_EXE" ]; then
         dirname "$(dirname "$CONDA_EXE")"
@@ -40,221 +54,137 @@ zorgdk_get_conda_base() {
     fi
 }
 
-# Function to initialize conda for bash
 zorgdk_init_conda() {
     local conda_base
     conda_base=$(zorgdk_get_conda_base)
-    
-    if [ -z "$conda_base" ]; then
-        zorgdk_print_error "Could not find conda installation"
-        return 1
-    fi
-    
-    # Source conda.sh if it exists
-    if [ -f "$conda_base/etc/profile.d/conda.sh" ]; then
-        source "$conda_base/etc/profile.d/conda.sh"
-        return 0
-    else
-        zorgdk_print_error "Could not find conda.sh at $conda_base/etc/profile.d/conda.sh"
-        return 1
-    fi
+    [ -z "$conda_base" ] && return 1
+    [ -f "$conda_base/etc/profile.d/conda.sh" ] || return 1
+    source "$conda_base/etc/profile.d/conda.sh"
 }
 
-# Function to check if conda is installed
-zorgdk_check_conda() {
-    if ! command -v conda &> /dev/null; then
-        zorgdk_print_error "Conda is not installed or not in PATH"
-        zorgdk_print_info "Please install Miniconda or Anaconda first"
-        zorgdk_print_info "Visit: https://docs.conda.io/en/latest/miniconda.html"
-        return 1
-    fi
-    return 0
-}
-
-# Function to check if environment exists
 zorgdk_env_exists() {
-    conda env list | grep -q "^${ZORGDK_CONDA_ENV_NAME} "
-    return $?
+    conda env list 2>/dev/null | grep -q "^${ZORGDK_CONDA_ENV_NAME} "
 }
 
-# Function to create conda environment
 zorgdk_create_env() {
     zorgdk_print_info "Creating conda environment: $ZORGDK_CONDA_ENV_NAME"
-    conda create -n "$ZORGDK_CONDA_ENV_NAME" python=3.10 -y
-    
-    if [ $? -ne 0 ]; then
-        zorgdk_print_error "Failed to create conda environment"
-        return 1
-    fi
-    
+    conda create -n "$ZORGDK_CONDA_ENV_NAME" python=3.10 -y || return 1
     zorgdk_print_info "Environment created successfully"
-    return 0
 }
 
-# Function to install dependencies
 zorgdk_install_dependencies() {
-    zorgdk_print_info "Installing Python dependencies..."
-    
-    # Make sure conda is initialized
-    if ! zorgdk_init_conda; then
-        return 1
-    fi
-    
-    # Activate environment
-    conda activate "$ZORGDK_CONDA_ENV_NAME"
-    
-    if [ $? -ne 0 ]; then
-        zorgdk_print_error "Failed to activate environment"
-        return 1
-    fi
-    
-    # Install all required dependencies to avoid conflicts
-    zorgdk_print_info "Installing base dependencies..."
+    zorgdk_init_conda || return 1
+    conda activate "$ZORGDK_CONDA_ENV_NAME" || return 1
     pip install --upgrade pip
     pip install idna certifi click itsdangerous Jinja2 PyYAML
-    
-    zorgdk_print_info "Installing pdfplumber..."
     pip install pdfplumber
-    
-    if [ $? -ne 0 ]; then
-        zorgdk_print_error "Failed to install dependencies"
-        return 1
-    fi
-    
-    zorgdk_print_info "Dependencies installed successfully"
-    return 0
 }
 
-# Function to setup everything
 zorgdk_setup_environment() {
-    zorgdk_print_info "Starting setup process..."
-    
-    # Check conda
-    if ! zorgdk_check_conda; then
-        return 1
-    fi
-    
-    # Initialize conda
-    if ! zorgdk_init_conda; then
-        return 1
-    fi
-    
-    # Check if environment exists
+    zorgdk_print_info "Starting conda setup process..."
+    command -v conda &>/dev/null || { zorgdk_print_error "Conda not found"; return 1; }
+    zorgdk_init_conda || return 1
     if zorgdk_env_exists; then
         zorgdk_print_info "Environment '$ZORGDK_CONDA_ENV_NAME' already exists"
-        
-        # Check if pdfplumber is installed
         conda activate "$ZORGDK_CONDA_ENV_NAME"
-        
-        if ! python -c "import pdfplumber" 2>/dev/null; then
-            zorgdk_print_warn "pdfplumber not found, installing..."
-            zorgdk_install_dependencies
-        else
-            zorgdk_print_info "All dependencies are already installed"
-        fi
+        python -c "import pdfplumber" 2>/dev/null \
+            || zorgdk_install_dependencies
     else
-        # Create environment and install dependencies
-        zorgdk_create_env
-        if [ $? -eq 0 ]; then
-            zorgdk_install_dependencies
-        else
-            return 1
-        fi
+        zorgdk_create_env && zorgdk_install_dependencies
     fi
-    
-    zorgdk_print_info "Setup complete!"
-    return 0
+    zorgdk_print_info "Conda setup complete!"
 }
 
-# Main parse function
+# --- Main parse function ---
+
 zorgdk_parse_looplijst() {
     local pdf_path="$1"
-    
-    # Validate input
+
     if [ -z "$pdf_path" ]; then
         zorgdk_print_error "No PDF file specified"
         echo "Usage: zorgdk_parse_looplijst <pdf_file_path>"
         return 1
     fi
-    
-    # Convert to absolute path
+
     pdf_path="$(realpath "$pdf_path" 2>/dev/null || echo "$pdf_path")"
-    
-    # Check if file exists
+
     if [ ! -f "$pdf_path" ]; then
         zorgdk_print_error "File not found: $pdf_path"
         return 1
     fi
-    
-    # Check if it's a PDF
+
     if [[ ! "$pdf_path" =~ \.pdf$ ]]; then
         zorgdk_print_error "Not a PDF file: $pdf_path"
         return 1
     fi
-    
-    zorgdk_print_info "Processing: $pdf_path"
-    
-    # Setup environment if needed
-    if ! zorgdk_check_conda; then
-        return 1
-    fi
-    
-    # Initialize conda
-    if ! zorgdk_init_conda; then
-        return 1
-    fi
-    
-    if ! zorgdk_env_exists; then
-        zorgdk_print_warn "Environment not found, setting up..."
-        zorgdk_setup_environment
-        if [ $? -ne 0 ]; then
-            return 1
-        fi
-    fi
-    
-    # Activate environment and run parser
-    conda activate "$ZORGDK_CONDA_ENV_NAME"
-    
-    if [ $? -ne 0 ]; then
-        zorgdk_print_error "Failed to activate conda environment"
-        zorgdk_print_info "Try running: conda activate $ZORGDK_CONDA_ENV_NAME"
-        return 1
-    fi
-    
-    # Verify pdfplumber is available
-    if ! python -c "import pdfplumber" 2>/dev/null; then
-        zorgdk_print_error "pdfplumber not available in environment"
-        zorgdk_print_info "Running setup to install dependencies..."
-        zorgdk_install_dependencies
-        if [ $? -ne 0 ]; then
-            return 1
-        fi
-    fi
-    
-    # Check if Python script exists
+
     if [ ! -f "$ZORGDK_PYTHON_SCRIPT" ]; then
         zorgdk_print_error "Parser script not found: $ZORGDK_PYTHON_SCRIPT"
         return 1
     fi
-    
-    # Run the parser
-    python "$ZORGDK_PYTHON_SCRIPT" "$pdf_path"
-    
+
+    zorgdk_print_info "Processing: $pdf_path"
+
+    # --- Resolve which Python to use ---
+    local PYTHON=""
+
+    # 1. Try conda environment first (if conda is available)
+    if command -v conda &>/dev/null && zorgdk_init_conda 2>/dev/null; then
+        if ! zorgdk_env_exists; then
+            zorgdk_print_warn "Conda env not found, setting up..."
+            zorgdk_setup_environment
+        fi
+        conda activate "$ZORGDK_CONDA_ENV_NAME" 2>/dev/null
+        if python -c "import pdfplumber" 2>/dev/null; then
+            PYTHON="python"
+            zorgdk_print_info "Using conda environment: $ZORGDK_CONDA_ENV_NAME"
+        fi
+    fi
+
+    # 2. Fall back to system Python with pdfplumber already available
+    if [ -z "$PYTHON" ]; then
+        PYTHON=$(zorgdk_find_python)
+        if [ -n "$PYTHON" ]; then
+            zorgdk_print_info "Using system Python: $(command -v "$PYTHON")"
+        fi
+    fi
+
+    # 3. Try installing pdfplumber into system Python
+    if [ -z "$PYTHON" ]; then
+        zorgdk_print_warn "pdfplumber not found, attempting pip install..."
+        for candidate in python3 python; do
+            if command -v "$candidate" &>/dev/null; then
+                zorgdk_pip_install "$candidate"
+                if "$candidate" -c "import pdfplumber" 2>/dev/null; then
+                    PYTHON="$candidate"
+                    break
+                fi
+            fi
+        done
+    fi
+
+    if [ -z "$PYTHON" ]; then
+        zorgdk_print_error "No suitable Python with pdfplumber found."
+        zorgdk_print_error "Install it manually: pip install pdfplumber"
+        return 1
+    fi
+
+    # --- Run the parser ---
+    "$PYTHON" "$ZORGDK_PYTHON_SCRIPT" "$pdf_path"
     local exit_code=$?
-    
+
     if [ $exit_code -eq 0 ]; then
         local json_path="${pdf_path%.pdf}.json"
         zorgdk_print_info "JSON output: $json_path"
     else
         zorgdk_print_error "Parser failed with exit code: $exit_code"
     fi
-    
+
     return $exit_code
 }
 
-# If script is being sourced, just define the function
+# --- Direct execution ---
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    # Script is being executed directly
     if [ "$1" == "setup" ]; then
         zorgdk_setup_environment
     elif [ -n "$1" ]; then
@@ -264,7 +194,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         echo ""
         echo "Usage:"
         echo "  $0 setup                    # Setup conda environment and dependencies"
-        echo "  $0 <pdf_file>              # Parse a PDF file"
+        echo "  $0 <pdf_file>               # Parse a PDF file"
         echo ""
         echo "Or source this script and use the function:"
         echo "  source $0"
